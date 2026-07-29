@@ -1,0 +1,140 @@
+// Variables
+$primary = #3498db
+$font-stack = 'Helvetica Neue', sans-serif
+$base-size = 16px
+
+/* Block comment
+   spanning lines */
+
+// Mixin definition
+border-radius(r = 5px)
+  -webkit-border-radius r
+  -moz-border-radius r
+  border-radius r
+
+// Function with return
+add(a, b)
+  return a + b
+
+// Selector nesting
+.card
+  background white
+  border-radius(8px)
+  margin: 0 auto
+  padding 10px 20px
+
+  &:hover
+    box-shadow 0 4px 20px rgba(0, 0, 0, 0.1)
+
+  .title
+    font-size 1.5rem
+    color $primary
+
+  > .content
+    line-height 1.6
+
+// Brace style
+.button {
+  color: red;
+  margin: 0;
+}
+
+// Conditionals
+.alert
+  if $theme == dark
+    background #222
+  else if $theme == light
+    background #eee
+  else
+    background white
+
+// Unless
+.box
+  unless $hidden
+    display block
+
+// Loops
+for i in (1..5)
+  .col-{i}
+    width (i * 20)%
+
+for key, value in $map
+  .{key}
+    content value
+
+// Interpolation
+vendor(prop, val)
+  for prefix in webkit moz ms
+    -{prefix}-{prop} val
+  {prop} val
+
+// At-rules
+@import 'reset.styl'
+@import "components/button"
+
+@charset "utf-8";
+
+@media screen and (min-width: 768px)
+  .container
+    width 750px
+
+@media (max-width: 480px), print
+  .container
+    width 100%
+
+@keyframes fade-in
+  from
+    opacity 0
+  to
+    opacity 1
+
+@keyframes slide
+  0%
+    transform translateX(0)
+  50%
+    transform translateX(50%)
+  100%
+    transform translateX(100%)
+
+@font-face
+  font-family 'Custom'
+  src url('fonts/custom.woff2') format('woff2')
+
+@supports (display: grid)
+  .grid
+    display grid
+
+// Operators and values
+.math
+  width add(100px, 20px)
+  height (100px / 2)
+  margin -10px auto
+  opacity .5
+  z-index 100
+  transform translate(10px, 20%) rotate(45deg)
+
+// Pseudo selectors
+a:link
+  color blue
+a::before
+  content ''
+input[type="text"]:focus
+  outline none
+li:nth-child(2n+1)
+  background #f5f5f5
+
+// Important and url
+.override
+  color red !important
+  background url('../img/bg.png') no-repeat
+
+// Boolean / null
+$enabled = true
+$disabled = false
+$empty = null
+
+// Attribute selectors
+[hidden]
+  display none
+a[target="_blank"]
+  color green
