@@ -10,6 +10,6 @@
   (generic_at_rule)
   (keyframes_statement)
   (keyframe_rule)
-] @indent.begin
+] @indent
 
 (_ "{" "}" @end) @indent
