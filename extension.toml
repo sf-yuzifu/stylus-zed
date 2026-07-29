@@ -8,4 +8,4 @@ repository = "https://github.com/sf-yuzifu/stylus-zed"
 
 [grammars.stylus]
 repository = "https://github.com/sf-yuzifu/tree-sitter-stylus"
-rev = "44e8411a328a58c4ed102770d41fc82630ee004a"
+rev = "060eacd775e24fca721091e58d6ca14c3c2bb7d5"

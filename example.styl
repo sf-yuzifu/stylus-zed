@@ -501,3 +501,137 @@ $reset = @block
   border-color red
   outline-color transparent
   background currentColor
+
+// ---------- 20. 更多边界 ----------
+// 科学计数法
+.scientific
+  width 1e5px
+  opacity 2.5e-1
+  z-index 1E3
+
+// hash 的多种 key
+$mixed-hash = {
+  'string-key': 1,
+  $variable-key: 2,
+  plain-key: 3,
+}
+
+// @media 使用变量
+$bp = 768px
+@media (min-width: $bp)
+  .var-media
+    width 100%
+
+// brace 风格的 if/else
+.braced-if {
+  color: red;
+}
+
+// & 后缀拼接
+.block
+  &-element
+    color red
+  &--modifier
+    color blue
+
+// 字符串转义
+.escaped
+  content 'it\'s'
+  content "quote \" inside"
+
+// 多层嵌套函数调用
+.nested-calls
+  color rgba(lighten(#3498db, 10%), 0.8)
+  width calc(100% - calc(2 * 10px))
+
+// 单行多条规则
+.a { color: red } .b { color: blue }
+
+// 变量与插值混用
+$dir = left
+.interp-mixed
+  border-{$dir}-radius 5px
+  margin-{$dir} 10px
+
+// @supports 使用变量
+$feature = display
+@supports ($feature: grid)
+  .supports-var
+    display grid
+
+// !important 在多个值后
+.important-multi
+  margin 0 auto !important
+  padding 10px 20px !important
+
+// 选择器中插值与伪类组合
+.item
+  .child-{i}:hover
+    color red
+  &[data-state='{state}']
+    color blue
+
+// 深层逗号选择器 + 嵌套
+.deep-a,
+.deep-b .deep-c,
+.deep-d > .deep-e
+  color red
+
+// 单位全覆盖
+.units
+  width 10px
+  width 10em
+  width 10rem
+  width 10vw
+  width 10vh
+  width 10vmin
+  width 10vmax
+  width 10%
+  width 10fr
+  width 10ch
+  width 10ex
+  width 10cm
+  width 10mm
+  width 10in
+  width 10pt
+  width 10pc
+  width 10q
+  transition 1s
+  transition 100ms
+  transform rotate(45deg)
+  transform rotate(0.5turn)
+  transform rotate(50grad)
+  transform rotate(1.57rad)
+  image-resolution 300dpi
+  image-resolution 2dppx
+
+// @keyframes 单行多选择器
+@keyframes multi
+  0%, 100%
+    opacity 0
+  50%
+    opacity 1
+
+// 嵌套 at-rule
+@media screen
+  @media (min-width: 100px)
+    .nested-media
+      color red
+
+// if 嵌套 if
+.nested-if
+  if $a
+    if $b
+      color red
+    else
+      color blue
+
+// return 多个值
+multi-return()
+  return 10px 20px
+
+// 空参数调用 vs 无参调用
+.calls
+  fn()
+  fn
+  fn( )
