@@ -102,6 +102,8 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   assert.equal(initialize.result.capabilities.textDocumentSync.change, 2);
   assert.ok(initialize.result.capabilities.completionProvider.triggerCharacters.includes("$"));
   assert.equal(initialize.result.capabilities.hoverProvider, true);
+  assert.equal(initialize.result.capabilities.colorProvider, true);
+  assert.ok(initialize.result.capabilities.signatureHelpProvider.triggerCharacters.includes("("));
 
   server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
   server.send({
@@ -133,7 +135,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/didChange",
     params: {
       textDocument: { uri, version: 2 },
-      contentChanges: [{ text: "body\n  color red" }],
+      contentChanges: [{ text: "body\n  color rgba(1, 2, 3, 0.5)" }],
     },
   });
 
@@ -170,6 +172,30 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   });
   const hover = await server.waitFor((message) => message.id === 4);
   assert.match(hover.result.contents.value, /<color>/);
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 5,
+    method: "textDocument/documentColor",
+    params: { textDocument: { uri } },
+  });
+  const documentColor = await server.waitFor((message) => message.id === 5);
+  assert.equal(documentColor.result.length, 1);
+  assert.equal(documentColor.result[0].color.alpha, 0.5);
+  assert.deepEqual(documentColor.result[0].range.start, { line: 1, character: 8 });
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 6,
+    method: "textDocument/signatureHelp",
+    params: {
+      textDocument: { uri },
+      position: { line: 1, character: 16 },
+    },
+  });
+  const signatureHelp = await server.waitFor((message) => message.id === 6);
+  assert.match(signatureHelp.result.signatures[0].label, /^rgba\(/);
+  assert.equal(signatureHelp.result.activeParameter, 1);
 
   server.send({
     jsonrpc: "2.0",

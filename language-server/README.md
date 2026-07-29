@@ -14,6 +14,12 @@ The server accepts `--stdio` and provides:
   mixins, and functions defined in the current file.
 - **Hover** — variable declarations, mixin/function signatures, Stylus
   built-in documentation, and CSS property documentation with MDN links.
+- **Color swatches** — hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and named
+  colors, including usages of variables assigned a literal color. The color
+  picker offers hex, RGB, and HSL presentations.
+- **Signature help** — user mixins with declared parameters and Stylus
+  built-ins with runtime-accurate signatures, tracking the active parameter
+  across nested calls.
 
 CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
 read from the installed compiler's own sources. File-local symbols use a

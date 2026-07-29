@@ -9,8 +9,10 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { validateStylus } from "../src/diagnostics.js";
+import { getColorPresentations, getDocumentColors } from "../src/colors.js";
 import { getCompletions } from "../src/completion.js";
 import { getHover } from "../src/hover.js";
+import { getSignatureHelp } from "../src/signature.js";
 import { indexDocument } from "../src/symbols.js";
 
 const CHANGE_DEBOUNCE_MS = 200;
@@ -32,10 +34,15 @@ connection.onInitialize(() => ({
       resolveProvider: false,
     },
     hoverProvider: true,
+    colorProvider: true,
+    signatureHelpProvider: {
+      triggerCharacters: ["(", ","],
+      retriggerCharacters: [","],
+    },
   },
   serverInfo: {
     name: "stylus-language-server",
-    version: "0.3.0",
+    version: "0.4.0",
   },
 }));
 
@@ -64,6 +71,22 @@ connection.onHover((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return null;
   return getHover(document.getText(), params.position, symbolsFor(document));
+});
+
+connection.onDocumentColor((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return [];
+  return getDocumentColors(document.getText(), symbolsFor(document));
+});
+
+connection.onColorPresentation((params) => {
+  return getColorPresentations(params.color, params.range);
+});
+
+connection.onSignatureHelp((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+  return getSignatureHelp(document.getText(), params.position, symbolsFor(document));
 });
 
 function clearTimer(uri) {

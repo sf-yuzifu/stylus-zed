@@ -17,13 +17,15 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Compiler diagnostics from the official Stylus compiler, shown in the editor and the Problems panel as you type
 - Context-aware completions for CSS properties and values, Stylus built-in functions, at-rules, pseudo-classes and pseudo-elements, HTML tags, and the variables, mixins, and functions defined in the current file
 - Hover documentation for variables, mixins, functions, Stylus built-ins, and CSS properties with MDN links
+- Color swatches for literal colors and color-valued variables, with hex/RGB/HSL conversion through the color picker
+- Signature help for user mixins and Stylus built-in functions, tracking the active parameter
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
 
 ## Feature Matrix
 
-Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 6 of the 11 rows; the remaining 5 are on the roadmap:
+Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 8 of the 11 rows; the remaining 3 are on the roadmap:
 
 | Feature | This extension | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
@@ -31,12 +33,12 @@ Measured against the feature table published by [sinejoe/zed-stylus-extension](h
 | Diagnostics / linting | ✅ Live errors from the official Stylus compiler in the editor and Problems panel | ⚠️ Untested |
 | Completions | ✅ CSS properties/values, Stylus built-ins, at-rules, pseudo selectors, tags, and file-local variables/mixins/functions | ⚠️ Untested |
 | Hover documentation | ✅ Variables, mixins, functions, Stylus built-ins, and CSS properties | ⚠️ Untested |
-| Signature help | ❌ Planned | ⚠️ Untested |
+| Signature help | ✅ User mixins and Stylus built-ins with active-parameter tracking | ⚠️ Untested |
 | Go-to definition | ❌ Planned | ⚠️ Untested |
 | Find references | ❌ Planned | ⚠️ Untested |
 | Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
 | Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
-| Color picker | ❌ Planned | ⚠️ Untested |
+| Color picker | ✅ Swatches for literals and color-valued variables, with hex/RGB/HSL presentations | ⚠️ Untested |
 | Formatting | ❌ Planned | ⚠️ Untested |
 
 Diagnostics currently report the compiler's first error per validation pass and do not include style linting. Document symbols and folding are provided by the Tree-sitter grammar rather than the language server.
@@ -75,11 +77,15 @@ Completions and hover are provided by the same language server:
 
 Completion items are context-aware: values after a property, variables after `$`, at-rules after `@`, pseudo selectors after `:`, call arguments inside `()`, and properties/mixins/tags in statement position.
 
+Color swatches come from the same literal analysis the compiler performs: hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and the 148 CSS named colors are recognized, and variables assigned a literal color carry their swatch to every usage site. The color picker offers hex, RGB, and HSL replacement presentations. Colors produced by functions such as `lighten()` are not evaluated, so they do not get swatches yet.
+
+Signature help resolves the innermost call at the cursor — user mixins with their declared parameters, or Stylus built-ins with runtime-accurate signatures — and highlights the active parameter as you type across nested calls.
+
 ## Current Limitations
 
 - Diagnostics report the compiler's first error per validation pass, not every error at once
 - File-local symbols are line-based and not scope-aware; cross-file symbols (from `@import`ed files) are not indexed yet
-- No signature help, references, or go-to-definition yet
+- No references or go-to-definition yet
 - No formatter
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
 - The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
@@ -194,8 +200,9 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 - CSS property and value completion — done
 - Stylus built-in function completion and hover documentation — done
 - File-local variables, mixins, functions, and parameters — done (line-based); scope awareness and cross-file indexing are next
-- Signature help, go-to-definition, references, and LSP document symbols
-- Color swatches and a color picker via `documentColor`
+- Signature help and color swatches/presentations — done in v0.4
+- Go-to-definition, references, and LSP document symbols
+- Evaluated colors (e.g. `lighten()` results) for swatches
 
 ### Formatting and Linting
 
