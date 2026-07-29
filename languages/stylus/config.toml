@@ -18,4 +18,4 @@ brackets = [
         "comment",
     ] },
 ]
-word_characters = ["-", "$"]
+word_characters = ["-", "$", "@"]

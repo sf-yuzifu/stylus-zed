@@ -1,6 +1,8 @@
 [
   (rule_set)
   (mixin_definition)
+  (block_call_statement)
+  (anonymous_function)
   (if_statement)
   (else_if_clause)
   (else_clause)

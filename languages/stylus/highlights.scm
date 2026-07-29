@@ -12,8 +12,15 @@
 (pseudo_element_selector "::" @punctuation.delimiter)
 (attribute_name) @property
 (parent_selector) @variable.special
+(parent_suffix) @tag
 (universal_selector) @tag
 (combinator) @operator
+(reference_selector "^" @operator)
+(root_reference "/" @operator)
+(relative_reference "../" @operator)
+(namespace_selector "|" @operator)
+(at_pseudo_selector ":" @punctuation.delimiter)
+(pseudo_interpolation_selector ":" @punctuation.delimiter)
 
 ; Properties
 (property_name) @property
@@ -27,7 +34,9 @@
 (call_expression function: (variable) @function)
 (call_statement function: (identifier) @function)
 (call_statement function: (interpolated_name) @function)
+(block_call_statement function: (identifier) @function)
 (mixin_definition name: (identifier) @function)
+(anonymous_function "@" @keyword)
 (parameter (identifier) @variable.parameter)
 (parameter (variable) @variable.parameter)
 (named_argument (property_name) @variable.parameter)
@@ -42,6 +51,8 @@
 (important) @keyword
 (optional_flag) @keyword
 (url_value) @string.special
+(unicode_range) @string.special
+(escape_sequence) @string.escape
 (interpolation
   "{" @punctuation.special
   "}" @punctuation.special)
@@ -73,6 +84,11 @@
   "*"
   "/"
   "%"
+  "**"
+  "&&"
+  "||"
+  "!"
+  "~"
   "=="
   "!="
   "<"
@@ -80,6 +96,18 @@
   ">"
   ">="
   "="
+  "?="
+  ":="
+  "+="
+  "-="
+  "*="
+  "/="
+  "%="
+  "~="
+  "^="
+  "$="
+  "|="
+  "?"
   ".."
   "..."
 ] @operator

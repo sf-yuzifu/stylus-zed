@@ -5,7 +5,7 @@
   name: (identifier) @name) @item
 
 (keyframes_statement
-  name: (identifier) @name) @item
+  name: (_) @name) @item
 
 (variable_declaration
   name: (_) @name) @item

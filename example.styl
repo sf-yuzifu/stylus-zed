@@ -635,3 +635,133 @@ multi-return()
   fn()
   fn
   fn( )
+
+// ---------- 21. 真实项目中的冷门语法 ----------
+// 空列表、空下标、成员与下标访问
+$empty-list = ()
+$first = $items[0]
+$slice = $items[1..3]
+$all = $items[]
+$member = $theme.colors.primary
+
+// 条件/复合赋值
+$fallback ?= red
+$root-value := blue
+$count += 1
+$count -= 1
+
+// 值内赋值与三元多值分支
+.assignment-expression
+  custom ret = push($items, 1)
+  padding $enabled ? 10px 20px : 0
+
+// 隐式返回表达式
+implicit-return(x)
+  x * 2
+
+// 匿名函数
+apply-callback(fn)
+  return fn(2, 3)
+
+$callback = @(a, b) {
+  a + b
+}
+
+// mixin block call
+with-state()
+  {block}
+
+.block-call
+  +with-state() {
+    &:hover {
+      color red
+    }
+  }
+
+// 多目标 extend
+.extend-source
+  display block
+
+.extend-target
+  @extend .extend-source[data-kind*=','], $placeholder, $other !optional
+
+// 根/相对/引用/命名空间选择器
+/.root-selector
+  color red
+
+/
+  color blue
+
+.scope
+  ../ .relative-selector
+    color green
+  ^[0] ^[1..1]
+    color purple
+
+svg|svg
+  fill currentColor
+
+svg|.icon
+  stroke currentColor
+
+// 换行分组选择器（无逗号）
+.group-a
+.group-b
+  color red
+
+// 动态伪类、嵌套伪类
+li a:{state}
+  color black
+
+a:where(:not(:hover))
+  text-decoration none
+
+// 动态 keyframes 名称
+for i in 1..2
+  @keyframes {'motion-' + i}
+    from
+      opacity 0
+    to
+      opacity 1
+
+// comment-only 条件块
+if false
+  // deliberately empty
+else
+  body
+    color red
+
+// 参数换行且逗号放在下一行开头
+multi-line-params(
+  x = 5
+, y = 10
+)
+  padding y x
+
+// hash 对之间省略逗号
+$object-no-commas = {
+  first: 1
+  second: 2
+}
+
+// 短十六进制、unicode-range 与旧式 star hack
+.legacy-syntax
+  color #e
+  unicode-range U+0025-00FF, U+4??
+  *zoom 1
+
+// 行末反斜杠续行、转义运算符
+$continued = foo \
+             bar \
+             baz
+
+.escaped-operators
+  font 14px \+ 1.2
+  border-radius 5px \( 5px
+
+// brace 放在下一行
+.brace-next-line
+{
+  color: red;
+  margin: 0;
+}

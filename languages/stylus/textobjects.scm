@@ -4,6 +4,12 @@
 (mixin_definition
   (block) @function.inside) @function.around
 
+(block_call_statement
+  (block) @function.inside) @function.around
+
+(anonymous_function
+  (expression_block) @function.inside) @function.around
+
 (generic_at_rule
   (block) @class.inside) @class.around
 
