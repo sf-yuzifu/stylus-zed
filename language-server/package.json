@@ -1,0 +1,43 @@
+{
+  "name": "stylus-language-server",
+  "version": "0.2.0",
+  "description": "Diagnostics-only language server powered by the official Stylus compiler",
+  "type": "module",
+  "bin": {
+    "stylus-language-server": "bin/stylus-language-server.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "language-server",
+    "lsp",
+    "stylus"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sf-yuzifu/stylus-zed.git",
+    "directory": "language-server"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "stylus": "0.64.0",
+    "vscode-languageserver": "10.1.0",
+    "vscode-languageserver-textdocument": "1.0.12"
+  },
+  "overrides": {
+    "stylus": {
+      "glob": "13.0.6"
+    }
+  }
+}

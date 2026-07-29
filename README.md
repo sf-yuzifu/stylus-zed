@@ -4,7 +4,7 @@
 
 Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https://zed.dev/) editor, powered by [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus).
 
-> Pre-release: syntax parsing and editor integration are available for development testing. Compiler diagnostics and language intelligence are planned before the first public release.
+> Pre-release: syntax parsing, editor integration, and compiler diagnostics are available for development testing. Language intelligence (completion, hover, navigation) is planned before the first public release.
 
 ## Features
 
@@ -14,9 +14,30 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Bracket matching and context-aware bracket/quote autoclosing
 - Document outline for selectors, mixins, variables, keyframes, and at-rules
 - Vim text objects for rules, mixins, block calls, anonymous functions, at-rules, keyframes, and comments
+- Compiler diagnostics from the official Stylus compiler, shown in the editor and the Problems panel as you type
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
+
+## Feature Matrix
+
+Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 4 of the 11 rows; the remaining 7 are on the roadmap:
+
+| Feature | This extension | sinejoe/zed-stylus-extension |
+| --- | --- | --- |
+| Syntax highlighting | ✅ Native `tree-sitter-stylus` grammar, both indentation and brace styles | ⚠️ Partial (CSS grammar as a stand-in) |
+| Diagnostics / linting | ✅ Live errors from the official Stylus compiler in the editor and Problems panel | ⚠️ Untested |
+| Completions | ❌ Planned | ⚠️ Untested |
+| Hover documentation | ❌ Planned | ⚠️ Untested |
+| Signature help | ❌ Planned | ⚠️ Untested |
+| Go-to definition | ❌ Planned | ⚠️ Untested |
+| Find references | ❌ Planned | ⚠️ Untested |
+| Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
+| Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
+| Color picker | ❌ Planned | ⚠️ Untested |
+| Formatting | ❌ Planned | ⚠️ Untested |
+
+Diagnostics currently report the compiler's first error per validation pass and do not include style linting. Document symbols and folding are provided by the Tree-sitter grammar rather than the language server.
 
 ## Compatibility
 
@@ -29,15 +50,25 @@ This extension currently pins [`tree-sitter-stylus@8f00573`](https://github.com/
 
 The grammar repository CI regenerates the parser and runs the corpus suite. The fixture, queries, and 501-file sweep are currently release checks rather than CI jobs; the real-world sweep is a recorded result until its runner and source revisions are checked in.
 
-These results measure parser compatibility, not compiler equivalence. The official Stylus compiler remains the source of truth for semantic validity.
+These results measure parser compatibility, not compiler equivalence. The official Stylus compiler remains the source of truth for semantic validity, and it is also what powers the diagnostics below.
+
+## Diagnostics
+
+The extension ships a diagnostics-only language server, [`stylus-language-server`](language-server/), backed by the official Stylus compiler (`stylus@0.64.0`). It validates the full compiler pipeline — parsing, evaluation, and `@import`/`@require` resolution — and publishes the first error Stylus reports:
+
+- Errors are shown inline and in the Problems panel, debounced by 200 ms while typing and refreshed immediately on save
+- Errors caused by an imported file are reported on that file's URI, so jumping to the problem opens the actual dependency
+- The server intentionally reports the compiler's first error instead of guessing additional ones from the Tree-sitter parse tree, avoiding diagnostics that disagree with the real compiler
+
+The extension downloads the pinned server package from npm on first use and caches it in Zed's extension work directory; subsequent starts work offline. A server already on the user's `PATH` is not required. No completion, hover, navigation, formatting, or lint rules are provided by the server yet.
 
 ## Current Limitations
 
-- No diagnostics or Problems panel integration yet
+- Diagnostics report the compiler's first error per validation pass, not every error at once
 - No completion, hover documentation, references, or go-to-definition yet
 - No formatter
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
-- Parsing is intentionally permissive and does not replace compiler or linter validation
+- The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
 
 ## Installation
 
@@ -58,7 +89,7 @@ Zed automatically compiles the extension and the Tree-sitter grammar revision pi
 The implementation is split between two repositories:
 
 - [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus) owns `grammar.js`, the external indentation scanner, generated parser sources, corpus tests, the full-language fixture, and reusable base queries.
-- This repository pins an immutable grammar commit and owns Zed metadata plus editor-specific queries such as outline and syntax overrides. Its Rust entry point is currently minimal and is reserved for future language-server integration.
+- This repository pins an immutable grammar commit and owns Zed metadata, editor-specific queries such as outline and syntax overrides, the Rust extension entry point that installs and launches the language server, and the language server itself.
 
 ```text
 stylus-zed/
@@ -66,6 +97,10 @@ stylus-zed/
 ├── Cargo.toml
 ├── src/lib.rs
 ├── example.styl
+├── language-server/
+│   ├── bin/stylus-language-server.js
+│   ├── src/diagnostics.js
+│   └── test/
 └── languages/stylus/
     ├── config.toml
     ├── highlights.scm
@@ -94,6 +129,15 @@ rustup target add wasm32-wasip2
 cargo build --locked --target wasm32-wasip2
 ```
 
+Run the language-server checks (requires Node.js 20 or newer):
+
+```sh
+cd language-server
+npm install
+npm run check
+npm test
+```
+
 With `stylus-zed` and `tree-sitter-stylus` checked out as sibling directories, run the parser checks from the grammar repository:
 
 ```sh
@@ -115,7 +159,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/outline.scm example.styl >/
 npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl >/dev/null
 ```
 
-Query compilation validates node names, but not Zed-specific capture semantics. Before release, install the repository as a dev extension, inspect `Zed.log` for query warnings, and smoke-test highlighting, Enter/dedent behavior, outline entries, bracket matching, quote insertion in strings/comments, and Vim text objects.
+Query compilation validates node names, but not Zed-specific capture semantics. Before release, install the repository as a dev extension, inspect `Zed.log` for query warnings, and smoke-test highlighting, Enter/dedent behavior, outline entries, bracket matching, quote insertion in strings/comments, Vim text objects, and compiler diagnostics in the Problems panel.
 
 ### Updating the Grammar
 
@@ -127,9 +171,9 @@ Query compilation validates node names, but not Zed-specific capture semantics. 
 
 ## Roadmap
 
-### Diagnostics
+### Diagnostics — done in v0.2
 
-The next major feature is a diagnostics-only language server backed by the official Stylus compiler. It will publish syntax and compiler errors to Zed without introducing a second, incompatible parser.
+A diagnostics-only language server backed by the official Stylus compiler publishes syntax, evaluation, and import errors to Zed without introducing a second, incompatible parser. Stylelint integration may be added later for style rules the compiler does not cover. `vscode-css-language-server` is intentionally not used because indentation-style Stylus is not valid CSS and would produce misleading diagnostics.
 
 ### Language Intelligence
 
@@ -137,10 +181,6 @@ The next major feature is a diagnostics-only language server backed by the offic
 - Stylus built-in function completion and hover documentation
 - Workspace variables, mixins, functions, and parameters
 - Go-to-definition, references, and document symbols
-
-### Linting
-
-Stylelint integration may be added after compiler diagnostics. `vscode-css-language-server` is intentionally not used because indentation-style Stylus is not valid CSS and would produce misleading diagnostics.
 
 ## Contributing
 

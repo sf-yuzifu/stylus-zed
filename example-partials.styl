@@ -1,0 +1,12 @@
+// example.styl 的导入目标 — 用于验证 @import/@require 解析
+$partial-color = #8e44ad
+$partial-gap = 24px
+
+partial-clearfix()
+  &::after
+    content ''
+    display table
+    clear both
+
+.partial-placeholder
+  box-sizing border-box

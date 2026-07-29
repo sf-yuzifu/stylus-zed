@@ -2,3 +2,5 @@ target/
 grammars/
 extension.wasm
 .DS_Store
+node_modules/
+*.tgz

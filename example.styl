@@ -15,7 +15,7 @@ legacy-var = red
 
 // 变量插值引用
 $side = top
-$prop = border-{$side}-radius
+$prop = unquote('border-' + $side + '-radius')
 
 // ---------- 2. Hash 字面量 ----------
 $breakpoints = {
@@ -24,7 +24,7 @@ $breakpoints = {
   desktop: 1024px
 }
 
-$theme = { bg: #fff, fg: #333, name: 'light' }
+$theme = { bg: #fff, fg: #333, name: 'light', colors: { primary: blue } }
 
 // hash 嵌套与遍历
 $nested = { a: { b: 1 } }
@@ -272,12 +272,21 @@ for key, value in $breakpoints
       width value
 
 // ---------- 11. @block ----------
-$reset = @block
-  margin 0
-  padding 0
+$reset = @block {
+  margin: 0
+  padding: 0
+}
+
+// 缩进块赋值（等价的隐式形式）
+$spacing-reset =
+  margin: 0
+  padding: 0
 
 .apply-block
   {$reset}
+
+.apply-block-alt
+  {$spacing-reset}
 
 // ---------- 12. @extend ----------
 .message
@@ -294,11 +303,11 @@ $reset = @block
 // ---------- 13. At-rules ----------
 @charset "utf-8";
 
-@import 'reset.styl'
-@import "components/button"
-@import 'optional-file' !optional
+@import 'example-partials.styl'
+@import "example-partials"
+@import 'example-partials' !optional
 @import url('https://fonts.example.com/css')
-@require 'mixins'
+@require 'example-partials'
 
 @namespace svg url('http://www.w3.org/2000/svg');
 
@@ -323,11 +332,6 @@ $reset = @block
   width 100%
   @media (min-width: 768px)
     width 50%
-
-// CSS range 语法
-@media (width >= 600px)
-  .wide
-    display flex
 
 @supports (display: grid)
   .grid
@@ -489,7 +493,7 @@ $reset = @block
   background url(image.png)
   background url('quoted.png')
   background url("double-quoted.png")
-  background url(data:image/png;base64,iVBORw0KGgo=)
+  background url('data:image/png;base64,iVBORw0KGgo=')
   background url(#gradient-ref)
 
 // 颜色各种形态
@@ -638,6 +642,7 @@ multi-return()
 
 // ---------- 21. 真实项目中的冷门语法 ----------
 // 空列表、空下标、成员与下标访问
+$items = alpha beta gamma delta
 $empty-list = ()
 $first = $items[0]
 $slice = $items[1..3]
@@ -683,7 +688,7 @@ with-state()
   display block
 
 .extend-target
-  @extend .extend-source[data-kind*=','], $placeholder, $other !optional
+  @extend .extend-source[data-kind*=','] !optional, $placeholder !optional, $other !optional
 
 // 根/相对/引用/命名空间选择器
 /.root-selector
@@ -750,14 +755,10 @@ $object-no-commas = {
   unicode-range U+0025-00FF, U+4??
   *zoom 1
 
-// 行末反斜杠续行、转义运算符
+// 行末反斜杠续行
 $continued = foo \
              bar \
              baz
-
-.escaped-operators
-  font 14px \+ 1.2
-  border-radius 5px \( 5px
 
 // brace 放在下一行
 .brace-next-line

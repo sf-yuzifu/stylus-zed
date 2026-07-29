@@ -4,7 +4,7 @@
 
 基于 [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus)，为 [Zed](https://zed.dev/) 编辑器提供原生 [Stylus](https://stylus-lang.com/) 语言支持。
 
-> 预发布状态：语法解析与编辑器集成已可用于开发测试。首个公开版本发布前，计划继续加入编译器诊断与语言智能能力。
+> 预发布状态：语法解析、编辑器集成与编译器诊断已可用于开发测试。首个公开版本发布前，计划继续加入补全、hover 与导航等语言智能能力。
 
 ## 功能
 
@@ -14,9 +14,30 @@
 - 括号匹配，以及能识别上下文的括号和引号自动闭合
 - 为选择器、mixin、变量、keyframes 和 at-rule 提供文档大纲
 - 为规则、mixin、block call、匿名函数、at-rule、keyframes 和注释提供 Vim text objects
+- 基于官方 Stylus 编译器的错误诊断，输入时实时显示在编辑器和 Problems 面板中
 - `.styl` 文件识别、注释切换、两空格缩进和 Stylus 单词字符配置
 
 grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因此，缩进式 Stylus 和 Stylus 特有语法都由原生 parser 解析。
+
+## 功能矩阵
+
+以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 4 项，其余 7 项已列入路线图：
+
+| 功能 | 本扩展 | sinejoe/zed-stylus-extension |
+| --- | --- | --- |
+| 语法高亮 | ✅ 原生 `tree-sitter-stylus` grammar，同时支持缩进式和大括号式 | ⚠️ 部分支持（以 CSS grammar 代替） |
+| 诊断 / lint | ✅ 官方 Stylus 编译器错误，实时显示在编辑器和 Problems 面板 | ⚠️ 未测试 |
+| 补全 | ❌ 计划中 | ⚠️ 未测试 |
+| Hover 文档 | ❌ 计划中 | ⚠️ 未测试 |
+| 签名帮助 | ❌ 计划中 | ⚠️ 未测试 |
+| 跳转到定义 | ❌ 计划中 | ⚠️ 未测试 |
+| 查找引用 | ❌ 计划中 | ⚠️ 未测试 |
+| 文档符号 | ✅ 通过 Tree-sitter outline 查询提供大纲面板（非 LSP `documentSymbol`） | ⚠️ 未测试 |
+| 代码折叠 | ✅ 通过 Tree-sitter 提供语法驱动的折叠 | ⚠️ 未测试 |
+| 颜色选择器 | ❌ 计划中 | ⚠️ 未测试 |
+| 格式化 | ❌ 计划中 | ⚠️ 未测试 |
+
+诊断目前每次校验只报告编译器发现的第一个错误，且不包含风格 lint。文档符号与折叠由 Tree-sitter grammar 提供，不经过 language server。
 
 ## 兼容性
 
@@ -29,15 +50,25 @@ grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因
 
 grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、查询文件和 501 文件扫描目前属于发布前检查而非 CI 任务；在扫描脚本与样例来源 revision 纳入仓库前，501 文件数据只表示一次已记录的测试结果。
 
-这些结果衡量的是 parser 兼容性，并不等价于编译器语义。Stylus 官方编译器仍然是判断代码语义是否合法的最终依据。
+这些结果衡量的是 parser 兼容性，并不等价于编译器语义。Stylus 官方编译器仍然是判断代码语义是否合法的最终依据，同时也是下方诊断功能的错误来源。
+
+## 错误诊断
+
+扩展附带一个 diagnostics-only language server：[`stylus-language-server`](language-server/)，由官方 Stylus 编译器（`stylus@0.64.0`）驱动。它运行完整的编译流程——解析、求值以及 `@import`/`@require` 解析——并发布 Stylus 报告的第一个错误：
+
+- 错误显示在编辑器内和 Problems 面板中，输入时按 200ms 防抖刷新，保存时立即刷新
+- 由被导入文件引起的错误会报告到该文件的 URI 上，跳转时直接打开真正的依赖文件
+- 服务器刻意只报告编译器的第一个错误，而不是基于 Tree-sitter 语法树猜测更多错误，避免诊断与真实编译器行为不一致
+
+扩展首次使用时从 npm 下载固定版本的服务器包，并缓存在 Zed 的扩展工作目录中，之后离线可用，不要求用户预先在 `PATH` 中安装服务器。服务器暂不提供补全、hover、导航、格式化或 lint 规则。
 
 ## 当前限制
 
-- 暂无错误诊断和 Problems 面板集成
+- 每次校验只报告编译器发现的第一个错误，而不是一次列出全部错误
 - 暂无补全、hover 文档、引用查找和跳转到定义
 - 暂无格式化器
 - 伪类与伪元素参数内容目前以宽容的 `pseudo_argument_text` 解析，嵌套参数尚不能获得完整的语法感知高亮
-- parser 会有意保持一定宽容度，不能替代编译器或 linter
+- Tree-sitter parser 会有意保持宽容度；编译器诊断才是权威的错误信号
 
 ## 安装
 
@@ -58,7 +89,7 @@ Zed 会自动编译扩展以及 [`extension.toml`](extension.toml) 中固定 rev
 实现分布在两个仓库：
 
 - [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus) 负责 `grammar.js`、外部缩进 scanner、生成的 parser 源码、corpus 测试、完整语法 fixture 和可复用的基础查询。
-- 本仓库固定不可变的 grammar commit，并维护 Zed metadata 与 outline、syntax overrides 等编辑器专用查询。当前 Rust 入口只包含最小注册逻辑，留作后续 language server 集成使用。
+- 本仓库固定不可变的 grammar commit，维护 Zed metadata 与 outline、syntax overrides 等编辑器专用查询，负责安装并启动 language server 的 Rust 扩展入口，以及 language server 本身。
 
 ```text
 stylus-zed/
@@ -66,6 +97,10 @@ stylus-zed/
 ├── Cargo.toml
 ├── src/lib.rs
 ├── example.styl
+├── language-server/
+│   ├── bin/stylus-language-server.js
+│   ├── src/diagnostics.js
+│   └── test/
 └── languages/stylus/
     ├── config.toml
     ├── highlights.scm
@@ -94,6 +129,15 @@ rustup target add wasm32-wasip2
 cargo build --locked --target wasm32-wasip2
 ```
 
+运行 language server 检查（需要 Node.js 20 或更高版本）：
+
+```sh
+cd language-server
+npm install
+npm run check
+npm test
+```
+
 当 `stylus-zed` 和 `tree-sitter-stylus` 位于同一父目录时，在 grammar 仓库执行 parser 检查：
 
 ```sh
@@ -115,7 +159,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/outline.scm example.styl >/
 npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl >/dev/null
 ```
 
-查询编译只能验证节点名称，不能验证 Zed 专用 capture 的行为。发布前应将本仓库安装为开发扩展，检查 `Zed.log` 是否存在查询警告，并分别验证高亮、按 Enter 与反缩进、文档大纲、括号匹配、字符串或注释内的引号插入以及 Vim text objects。
+查询编译只能验证节点名称，不能验证 Zed 专用 capture 的行为。发布前应将本仓库安装为开发扩展，检查 `Zed.log` 是否存在查询警告，并分别验证高亮、按 Enter 与反缩进、文档大纲、括号匹配、字符串或注释内的引号插入、Vim text objects，以及 Problems 面板中的编译器诊断。
 
 ### 更新 Grammar
 
@@ -127,9 +171,9 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 ## 路线图
 
-### 错误诊断
+### 错误诊断 —— 已在 v0.2 完成
 
-下一个主要功能是基于官方 Stylus 编译器的 diagnostics-only language server。它会向 Zed 发布语法和编译错误，同时避免引入第二套不兼容的 parser。
+基于官方 Stylus 编译器的 diagnostics-only language server 会向 Zed 发布语法、求值和导入错误，同时避免引入第二套不兼容的 parser。后续可以针对编译器不覆盖的风格规则接入 Stylelint。本扩展不会使用 `vscode-css-language-server`，因为缩进式 Stylus 不是合法 CSS，直接接入会产生误导性的错误诊断。
 
 ### 语言智能
 
@@ -137,10 +181,6 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 - Stylus 内置函数补全和 hover 文档
 - 工作区变量、mixin、函数和参数补全
 - 跳转到定义、引用查找和 document symbols
-
-### Lint
-
-编译器诊断稳定后可以集成 Stylelint。本扩展不会使用 `vscode-css-language-server`，因为缩进式 Stylus 不是合法 CSS，直接接入会产生误导性的错误诊断。
 
 ## 贡献
 
