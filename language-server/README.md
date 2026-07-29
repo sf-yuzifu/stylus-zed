@@ -1,11 +1,24 @@
 # Stylus Language Server
 
-A diagnostics-only Language Server Protocol implementation backed by the
-official [Stylus](https://github.com/stylus/stylus) compiler.
+A Language Server Protocol implementation for [Stylus](https://stylus-lang.com/),
+backed by the official [Stylus compiler](https://github.com/stylus/stylus).
 
-The server accepts `--stdio`, validates open documents after changes, and
-publishes the first syntax or compiler error reported by Stylus. It does not
-provide completion, hover, navigation, formatting, or lint rules.
+The server accepts `--stdio` and provides:
+
+- **Diagnostics** — the first error reported by the official compiler (syntax,
+  evaluation, and `@import`/`@require` resolution), debounced while typing and
+  refreshed on save. Errors inside imported files are published on that file's
+  URI.
+- **Completions** — CSS properties and values, Stylus built-in functions,
+  at-rules, pseudo-classes and pseudo-elements, HTML tags, and the variables,
+  mixins, and functions defined in the current file.
+- **Hover** — variable declarations, mixin/function signatures, Stylus
+  built-in documentation, and CSS property documentation with MDN links.
+
+CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
+read from the installed compiler's own sources. File-local symbols use a
+resilient line-based index that keeps working while the document is broken
+mid-edit. The server does not provide navigation, formatting, or lint rules.
 
 ```sh
 npx stylus-language-server --stdio

@@ -9,12 +9,16 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 
 import { validateStylus } from "../src/diagnostics.js";
+import { getCompletions } from "../src/completion.js";
+import { getHover } from "../src/hover.js";
+import { indexDocument } from "../src/symbols.js";
 
 const CHANGE_DEBOUNCE_MS = 200;
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
 const timers = new Map();
 const resultsByDocument = new Map();
+const symbolCache = new Map();
 
 connection.onInitialize(() => ({
   capabilities: {
@@ -23,12 +27,44 @@ connection.onInitialize(() => ({
       change: TextDocumentSyncKind.Incremental,
       save: { includeText: false },
     },
+    completionProvider: {
+      triggerCharacters: ["$", "@", ":", "-", "(", " ", "."],
+      resolveProvider: false,
+    },
+    hoverProvider: true,
   },
   serverInfo: {
     name: "stylus-language-server",
-    version: "0.2.0",
+    version: "0.3.0",
   },
 }));
+
+function symbolsFor(document) {
+  const cached = symbolCache.get(document.uri);
+  if (cached && cached.version === document.version) return cached.index;
+  const index = indexDocument(document.getText());
+  symbolCache.set(document.uri, { version: document.version, index });
+  return index;
+}
+
+connection.onCompletion((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return [];
+  return {
+    isIncomplete: false,
+    items: getCompletions(
+      document.getText(),
+      params.position,
+      symbolsFor(document),
+    ),
+  };
+});
+
+connection.onHover((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+  return getHover(document.getText(), params.position, symbolsFor(document));
+});
 
 function clearTimer(uri) {
   const timer = timers.get(uri);
@@ -82,6 +118,7 @@ documents.onDidClose(({ document }) => {
   clearTimer(document.uri);
   const target = resultsByDocument.get(document.uri)?.uri ?? document.uri;
   resultsByDocument.delete(document.uri);
+  symbolCache.delete(document.uri);
   publishTarget(target);
 });
 

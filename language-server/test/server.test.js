@@ -100,7 +100,8 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   const initialize = await server.waitFor((message) => message.id === 1);
   assert.equal(initialize.result.serverInfo.name, "stylus-language-server");
   assert.equal(initialize.result.capabilities.textDocumentSync.change, 2);
-  assert.deepEqual(Object.keys(initialize.result.capabilities), ["textDocumentSync"]);
+  assert.ok(initialize.result.capabilities.completionProvider.triggerCharacters.includes("$"));
+  assert.equal(initialize.result.capabilities.hoverProvider, true);
 
   server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
   server.send({
@@ -143,6 +144,32 @@ test("publishes and clears diagnostics over stdio", async (context) => {
       message.params.diagnostics.length === 0,
   );
   assert.deepEqual(cleared.params.diagnostics, []);
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "textDocument/completion",
+    params: {
+      textDocument: { uri },
+      position: { line: 1, character: 8 },
+    },
+  });
+  const completion = await server.waitFor((message) => message.id === 3);
+  const labels = completion.result.items.map((item) => item.label);
+  assert.ok(labels.includes("red"));
+  assert.ok(labels.includes("lighten"));
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "textDocument/hover",
+    params: {
+      textDocument: { uri },
+      position: { line: 1, character: 3 },
+    },
+  });
+  const hover = await server.waitFor((message) => message.id === 4);
+  assert.match(hover.result.contents.value, /<color>/);
 
   server.send({
     jsonrpc: "2.0",

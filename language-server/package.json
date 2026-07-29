@@ -1,7 +1,7 @@
 {
   "name": "stylus-language-server",
-  "version": "0.2.0",
-  "description": "Diagnostics-only language server powered by the official Stylus compiler",
+  "version": "0.3.0",
+  "description": "Language server for Stylus powered by the official Stylus compiler",
   "type": "module",
   "bin": {
     "stylus-language-server": "bin/stylus-language-server.js"
@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js",
+    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js && node --check src/symbols.js && node --check src/completion.js && node --check src/hover.js && node --check src/data/css.js && node --check src/data/builtins.js && node --check src/data/html.js",
     "test": "node --test"
   },
   "engines": {
@@ -31,6 +31,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@vscode/web-custom-data": "0.6.3",
     "stylus": "0.64.0",
     "vscode-languageserver": "10.1.0",
     "vscode-languageserver-textdocument": "1.0.12"

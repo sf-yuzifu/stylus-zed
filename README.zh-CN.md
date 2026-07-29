@@ -15,20 +15,22 @@
 - 为选择器、mixin、变量、keyframes 和 at-rule 提供文档大纲
 - 为规则、mixin、block call、匿名函数、at-rule、keyframes 和注释提供 Vim text objects
 - 基于官方 Stylus 编译器的错误诊断，输入时实时显示在编辑器和 Problems 面板中
+- 上下文感知的补全：CSS 属性与值、Stylus 内建函数、at-rule、伪类与伪元素、HTML 标签，以及当前文件中定义的变量、mixin 和函数
+- Hover 文档：变量、mixin、函数、Stylus 内建函数，以及附带 MDN 链接的 CSS 属性文档
 - `.styl` 文件识别、注释切换、两空格缩进和 Stylus 单词字符配置
 
 grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因此，缩进式 Stylus 和 Stylus 特有语法都由原生 parser 解析。
 
 ## 功能矩阵
 
-以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 4 项，其余 7 项已列入路线图：
+以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 6 项，其余 5 项已列入路线图：
 
 | 功能 | 本扩展 | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
 | 语法高亮 | ✅ 原生 `tree-sitter-stylus` grammar，同时支持缩进式和大括号式 | ⚠️ 部分支持（以 CSS grammar 代替） |
 | 诊断 / lint | ✅ 官方 Stylus 编译器错误，实时显示在编辑器和 Problems 面板 | ⚠️ 未测试 |
-| 补全 | ❌ 计划中 | ⚠️ 未测试 |
-| Hover 文档 | ❌ 计划中 | ⚠️ 未测试 |
+| 补全 | ✅ CSS 属性/值、Stylus 内建函数、at-rule、伪选择器、标签，以及文件内变量/mixin/函数 | ⚠️ 未测试 |
+| Hover 文档 | ✅ 变量、mixin、函数、Stylus 内建函数和 CSS 属性 | ⚠️ 未测试 |
 | 签名帮助 | ❌ 计划中 | ⚠️ 未测试 |
 | 跳转到定义 | ❌ 计划中 | ⚠️ 未测试 |
 | 查找引用 | ❌ 计划中 | ⚠️ 未测试 |
@@ -60,12 +62,24 @@ grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、
 - 由被导入文件引起的错误会报告到该文件的 URI 上，跳转时直接打开真正的依赖文件
 - 服务器刻意只报告编译器的第一个错误，而不是基于 Tree-sitter 语法树猜测更多错误，避免诊断与真实编译器行为不一致
 
-扩展首次使用时从 npm 下载固定版本的服务器包，并缓存在 Zed 的扩展工作目录中，之后离线可用，不要求用户预先在 `PATH` 中安装服务器。服务器暂不提供补全、hover、导航、格式化或 lint 规则。
+扩展首次使用时从 npm 下载固定版本的服务器包，并缓存在 Zed 的扩展工作目录中，之后离线可用，不要求用户预先在 `PATH` 中安装服务器。
+
+## 语言智能
+
+补全与 hover 由同一个 language server 提供：
+
+- CSS 属性、值、at-rule 和伪选择器数据来自 [`@vscode/web-custom-data`](https://www.npmjs.com/package/@vscode/web-custom-data)（与 VS Code 相同的数据集），附 MDN 参考链接——只复用其数据，不使用它的 CSS parser（那会误读缩进式 Stylus）
+- Stylus 内建函数签名在运行时直接读取已安装编译器自身的源码（`functions/index.styl` 与 `functions/index.js`），始终与当前编译器一致；常用内建函数配有人工整理的说明
+- 变量、mixin 和函数由容错的逐行索引器从当前文件收集，因此编辑到一半文档暂时损坏时补全仍然可用
+- Hover 显示变量声明、mixin/函数签名（含定义上方的文档注释）、内建函数文档和 CSS 属性文档
+
+补全条目按上下文区分：属性后的值、`$` 后的变量、`@` 后的 at-rule、`:` 后的伪选择器、`()` 内的调用参数，以及语句位置的属性/mixin/标签。
 
 ## 当前限制
 
 - 每次校验只报告编译器发现的第一个错误，而不是一次列出全部错误
-- 暂无补全、hover 文档、引用查找和跳转到定义
+- 文件内符号索引基于逐行扫描，不感知作用域；跨文件符号（来自 `@import` 的文件）尚未建立索引
+- 暂无签名帮助、引用查找和跳转到定义
 - 暂无格式化器
 - 伪类与伪元素参数内容目前以宽容的 `pseudo_argument_text` 解析，嵌套参数尚不能获得完整的语法感知高亮
 - Tree-sitter parser 会有意保持宽容度；编译器诊断才是权威的错误信号
@@ -175,12 +189,17 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 基于官方 Stylus 编译器的 diagnostics-only language server 会向 Zed 发布语法、求值和导入错误，同时避免引入第二套不兼容的 parser。后续可以针对编译器不覆盖的风格规则接入 Stylelint。本扩展不会使用 `vscode-css-language-server`，因为缩进式 Stylus 不是合法 CSS，直接接入会产生误导性的错误诊断。
 
-### 语言智能
+### 语言智能 —— v0.3 已开始
 
-- CSS 属性和值补全
-- Stylus 内置函数补全和 hover 文档
-- 工作区变量、mixin、函数和参数补全
-- 跳转到定义、引用查找和 document symbols
+- CSS 属性和值补全 —— 已完成
+- Stylus 内建函数补全和 hover 文档 —— 已完成
+- 文件内变量、mixin、函数和参数 —— 已完成（逐行索引）；下一步是作用域感知与跨文件索引
+- 签名帮助、跳转到定义、引用查找和 LSP document symbols
+- 通过 `documentColor` 提供颜色色板和取色器
+
+### 格式化与 Lint
+
+格式化器与可选的 Stylelint 集成计划在语言智能稳定后进行。
 
 ## 贡献
 

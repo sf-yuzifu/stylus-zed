@@ -15,20 +15,22 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Document outline for selectors, mixins, variables, keyframes, and at-rules
 - Vim text objects for rules, mixins, block calls, anonymous functions, at-rules, keyframes, and comments
 - Compiler diagnostics from the official Stylus compiler, shown in the editor and the Problems panel as you type
+- Context-aware completions for CSS properties and values, Stylus built-in functions, at-rules, pseudo-classes and pseudo-elements, HTML tags, and the variables, mixins, and functions defined in the current file
+- Hover documentation for variables, mixins, functions, Stylus built-ins, and CSS properties with MDN links
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
 
 ## Feature Matrix
 
-Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 4 of the 11 rows; the remaining 7 are on the roadmap:
+Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 6 of the 11 rows; the remaining 5 are on the roadmap:
 
 | Feature | This extension | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
 | Syntax highlighting | ✅ Native `tree-sitter-stylus` grammar, both indentation and brace styles | ⚠️ Partial (CSS grammar as a stand-in) |
 | Diagnostics / linting | ✅ Live errors from the official Stylus compiler in the editor and Problems panel | ⚠️ Untested |
-| Completions | ❌ Planned | ⚠️ Untested |
-| Hover documentation | ❌ Planned | ⚠️ Untested |
+| Completions | ✅ CSS properties/values, Stylus built-ins, at-rules, pseudo selectors, tags, and file-local variables/mixins/functions | ⚠️ Untested |
+| Hover documentation | ✅ Variables, mixins, functions, Stylus built-ins, and CSS properties | ⚠️ Untested |
 | Signature help | ❌ Planned | ⚠️ Untested |
 | Go-to definition | ❌ Planned | ⚠️ Untested |
 | Find references | ❌ Planned | ⚠️ Untested |
@@ -60,12 +62,24 @@ The extension ships a diagnostics-only language server, [`stylus-language-server
 - Errors caused by an imported file are reported on that file's URI, so jumping to the problem opens the actual dependency
 - The server intentionally reports the compiler's first error instead of guessing additional ones from the Tree-sitter parse tree, avoiding diagnostics that disagree with the real compiler
 
-The extension downloads the pinned server package from npm on first use and caches it in Zed's extension work directory; subsequent starts work offline. A server already on the user's `PATH` is not required. No completion, hover, navigation, formatting, or lint rules are provided by the server yet.
+The extension downloads the pinned server package from npm on first use and caches it in Zed's extension work directory; subsequent starts work offline. A server already on the user's `PATH` is not required.
+
+## Language Intelligence
+
+Completions and hover are provided by the same language server:
+
+- CSS property, value, at-rule, and pseudo-selector data comes from [`@vscode/web-custom-data`](https://www.npmjs.com/package/@vscode/web-custom-data) (the same data set VS Code uses), including MDN reference links — only the data is reused, never its CSS parser, which would misread indentation-style Stylus
+- Stylus built-in function signatures are read at runtime from the installed compiler's own sources (`functions/index.styl` and `functions/index.js`), so they always match the compiler in use; descriptions for common built-ins are curated
+- Variables, mixins, and functions are collected from the current file by a resilient line-based indexer, so completions keep working while the document is temporarily broken mid-edit
+- Hover shows variable declarations, mixin/function signatures (with the doc comment above the definition), built-in documentation, and CSS property documentation
+
+Completion items are context-aware: values after a property, variables after `$`, at-rules after `@`, pseudo selectors after `:`, call arguments inside `()`, and properties/mixins/tags in statement position.
 
 ## Current Limitations
 
 - Diagnostics report the compiler's first error per validation pass, not every error at once
-- No completion, hover documentation, references, or go-to-definition yet
+- File-local symbols are line-based and not scope-aware; cross-file symbols (from `@import`ed files) are not indexed yet
+- No signature help, references, or go-to-definition yet
 - No formatter
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
 - The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
@@ -175,12 +189,17 @@ Query compilation validates node names, but not Zed-specific capture semantics. 
 
 A diagnostics-only language server backed by the official Stylus compiler publishes syntax, evaluation, and import errors to Zed without introducing a second, incompatible parser. Stylelint integration may be added later for style rules the compiler does not cover. `vscode-css-language-server` is intentionally not used because indentation-style Stylus is not valid CSS and would produce misleading diagnostics.
 
-### Language Intelligence
+### Language Intelligence — started in v0.3
 
-- CSS property and value completion
-- Stylus built-in function completion and hover documentation
-- Workspace variables, mixins, functions, and parameters
-- Go-to-definition, references, and document symbols
+- CSS property and value completion — done
+- Stylus built-in function completion and hover documentation — done
+- File-local variables, mixins, functions, and parameters — done (line-based); scope awareness and cross-file indexing are next
+- Signature help, go-to-definition, references, and LSP document symbols
+- Color swatches and a color picker via `documentColor`
+
+### Formatting and Linting
+
+A formatter and optional Stylelint integration are planned after the language-intelligence work settles.
 
 ## Contributing
 
