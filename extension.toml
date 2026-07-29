@@ -3,9 +3,9 @@ name = "Stylus"
 description = "Stylus (.styl) language support"
 version = "0.1.0"
 schema_version = 1
-authors = ["sf-yuzifu"]
+authors = ["sf-yuzifu <yuzifu@yuzifu.top>"]
 repository = "https://github.com/sf-yuzifu/stylus-zed"
 
 [grammars.stylus]
 repository = "https://github.com/sf-yuzifu/tree-sitter-stylus"
-rev = "c05916f9d5e4202b81ec8c2eb7885f99ed9014df"
+rev = "44e8411a328a58c4ed102770d41fc82630ee004a"

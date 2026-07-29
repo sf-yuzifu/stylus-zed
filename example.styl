@@ -1,78 +1,306 @@
-// Variables
+// ============================================
+// Stylus 全语法示例 — 用于 tree-sitter-stylus 验证
+// ============================================
+
+// ---------- 1. 变量 ----------
 $primary = #3498db
-$font-stack = 'Helvetica Neue', sans-serif
+$primary-dark = #2980b9cc
+$font-stack = 'Helvetica Neue', Arial, sans-serif
 $base-size = 16px
+$ratio = 1.5
+$enabled = true
+$disabled = false
+$empty = null
+legacy-var = red
 
-/* Block comment
-   spanning lines */
+// 变量插值引用
+$side = top
+$prop = border-{$side}-radius
 
-// Mixin definition
+// ---------- 2. Hash 字面量 ----------
+$breakpoints = {
+  mobile: 480px,
+  tablet: 768px,
+  desktop: 1024px
+}
+
+$theme = { bg: #fff, fg: #333, name: 'light' }
+
+// hash 嵌套与遍历
+$nested = { a: { b: 1 } }
+for key, value in $breakpoints
+  .col-{key}
+    width value
+
+// ---------- 3. Mixin 与函数 ----------
 border-radius(r = 5px)
   -webkit-border-radius r
   -moz-border-radius r
   border-radius r
 
-// Function with return
+// 多参数 + 默认值
+box-shadow-mixin(x = 0, y = 2px, blur = 4px, color = rgba(0, 0, 0, 0.2))
+  box-shadow x y blur color
+
+// rest 参数
+transition-mixin(props...)
+  transition props
+
+// 函数带返回值
 add(a, b)
   return a + b
 
-// Selector nesting
+double(n)
+  return n * 2
+
+// 函数作为值
+compute()
+  width 100px
+
+// ---------- 4. 调用方式 ----------
 .card
-  background white
   border-radius(8px)
-  margin: 0 auto
-  padding 10px 20px
+  box-shadow-mixin(0, 4px, 20px)
+  transition-mixin(color, background, transform)
+  clearfix
+  width add(100px, 20px)
+  height double(50px)
 
-  &:hover
-    box-shadow 0 4px 20px rgba(0, 0, 0, 0.1)
+// 命名参数
+.test
+  box-shadow-mixin(x: 1px, blur: 10px)
 
-  .title
-    font-size 1.5rem
-    color $primary
+// ---------- 5. 选择器 ----------
+div
+  color red
 
-  > .content
-    line-height 1.6
+.multiple,
+.selector,
+.list
+  margin 0 auto
 
-// Brace style
-.button {
-  color: red;
-  margin: 0;
-}
-
-// Conditionals
-.alert
-  if $theme == dark
-    background #222
-  else if $theme == light
-    background #eee
-  else
-    background white
-
-// Unless
-.box
-  unless $hidden
+.parent
+  .child
     display block
+  > .direct
+    display inline
+  + .adjacent
+    display none
+  ~ .sibling
+    display flex
 
-// Loops
+.ampersand
+  &:hover
+    color blue
+  &:active,
+  &:focus
+    color green
+  &.compound
+    color red
+  body.dark &
+    color white
+
+*
+  box-sizing border-box
+
+// 属性选择器
+[hidden]
+  display none
+a[target="_blank"]
+  color green
+input[type='text']
+  border 1px solid #ccc
+a[href^="https"]
+  color blue
+a[href$=".pdf"]
+  color gray
+[class*="btn"]
+  cursor pointer
+[data-theme=$dark]
+  color white
+
+// 伪类与伪元素
+a:link
+  color blue
+a:visited
+  color purple
+li:nth-child(2n+1)
+  background #f5f5f5
+li:nth-of-type(odd)
+  color black
+input:not(.exclude)
+  border none
+p::first-line
+  font-weight bold
+p::before
+  content ''
+.selection::selection
+  background yellow
+
+// 选择器插值
 for i in (1..5)
   .col-{i}
     width (i * 20)%
 
-for key, value in $map
-  .{key}
-    content value
+.{key}
+  content 'x'
 
-// Interpolation
+name = '.dynamic'
+{name}
+  color red
+
+// ---------- 6. 声明的各种写法 ----------
+.syntax
+  color: red;
+  color red
+  margin: 0 auto
+  padding 10px 20px 30px 40px
+  border 1px solid black
+  font bold 14px/1.5 $font-stack
+  background url('../img/bg.png') no-repeat center/cover
+  color red !important
+
+// CSS 自定义属性
+:root
+  --main-color: #06c
+  --gap: 16px
+  --computed: calc(var(--gap) * 2)
+
+.use-var
+  color var(--main-color)
+
+// ---------- 7. 插值 ----------
 vendor(prop, val)
   for prefix in webkit moz ms
     -{prefix}-{prop} val
   {prop} val
 
-// At-rules
+.interp
+  border-{side}-radius 5px
+  content 'string'
+
+// ---------- 8. 运算符 ----------
+.math
+  width 100px + 20px
+  width (200px - 10%)
+  width 10px * 2
+  width (100px / 3)
+  width 100px % 3
+  margin -10px auto
+  margin -(10px) 0
+  opacity .5
+  z-index -1
+  top 50%
+  left calc(100% - 20px)
+
+.compare
+  if $ratio >= 1.5
+    color red
+  if $base-size == 16px
+    color blue
+  if $primary isnt #000
+    color green
+  if not $disabled
+    color gray
+
+// 字符串拼接与 sprintf
+.strings
+  content 'Hello' + ' ' + 'World'
+  content 'size: %s' % 16px
+  content unquote('quoted')
+  font-family quote(sans)
+
+// 范围
+for i in (1..3)
+  .range-{i}
+    z-index i
+for i in (1...4)
+  .range-ex-{i}
+    z-index i
+
+// ---------- 9. 条件 ----------
+$theme-name = dark
+
+.alert
+  if $theme-name == dark
+    background #222
+    color #eee
+  else if $theme-name == light
+    background #eee
+    color #222
+  else
+    background white
+
+.box
+  unless $disabled
+    display block
+
+// 后缀条件
+.postfix
+  padding 10px if $enabled
+  margin 0 unless $disabled
+  border-radius() if $enabled
+
+// 条件中的逻辑运算
+.cond
+  if $enabled and $ratio > 1
+    color red
+  if $enabled or $disabled
+    color blue
+
+// is / is defined / is a
+.typecheck
+  if $empty is null
+    color gray
+  if $undefined-var is defined
+    color red
+  if $base-size is a 'unit'
+    color green
+
+// ---------- 10. 循环 ----------
+for i in (1..5)
+  .grid-{i}
+    width (i * 20)%
+
+for name in red green blue
+  .bg-{name}
+    background name
+
+for key, value in $breakpoints
+  @media (min-width: value)
+    .container-{key}
+      width value
+
+// ---------- 11. @block ----------
+$reset = @block
+  margin 0
+  padding 0
+
+.apply-block
+  {$reset}
+
+// ---------- 12. @extend ----------
+.message
+  padding 10px
+  border 1px solid
+
+.success
+  @extend .message
+  border-color green
+
+.warning
+  @extend .message !optional
+
+// ---------- 13. At-rules ----------
+@charset "utf-8";
+
 @import 'reset.styl'
 @import "components/button"
+@import 'optional-file' !optional
+@import url('https://fonts.example.com/css')
+@require 'mixins'
 
-@charset "utf-8";
+@namespace svg url('http://www.w3.org/2000/svg');
 
 @media screen and (min-width: 768px)
   .container
@@ -81,6 +309,37 @@ vendor(prop, val)
 @media (max-width: 480px), print
   .container
     width 100%
+
+@media screen and (min-width: 480px) and (max-width: 1024px)
+  .container
+    width 90%
+
+@media not print
+  .no-print-hidden
+    display block
+
+// 媒体查询冒泡（嵌套在规则内）
+.responsive
+  width 100%
+  @media (min-width: 768px)
+    width 50%
+
+// CSS range 语法
+@media (width >= 600px)
+  .wide
+    display flex
+
+@supports (display: grid)
+  .grid
+    display grid
+
+@supports not (display: grid)
+  .grid
+    display flex
+
+@supports (display: grid) or (display: flex)
+  .layout
+    display block
 
 @keyframes fade-in
   from
@@ -91,50 +350,154 @@ vendor(prop, val)
 @keyframes slide
   0%
     transform translateX(0)
-  50%
+  50%, 75%
     transform translateX(50%)
   100%
     transform translateX(100%)
 
+@-webkit-keyframes spin
+  from
+    transform rotate(0deg)
+  to
+    transform rotate(360deg)
+
 @font-face
   font-family 'Custom'
-  src url('fonts/custom.woff2') format('woff2')
+  src url('fonts/custom.woff2') format('woff2'),
+      url('fonts/custom.woff') format('woff')
+  font-weight normal
+  font-style normal
 
-@supports (display: grid)
-  .grid
-    display grid
+@page
+  margin 1in
 
-// Operators and values
-.math
-  width add(100px, 20px)
-  height (100px / 2)
-  margin -10px auto
-  opacity .5
-  z-index 100
-  transform translate(10px, 20%) rotate(45deg)
+@viewport
+  width device-width
 
-// Pseudo selectors
-a:link
-  color blue
-a::before
-  content ''
-input[type="text"]:focus
-  outline none
-li:nth-child(2n+1)
-  background #f5f5f5
+@document url('https://example.com')
+  body
+    color black
 
-// Important and url
-.override
-  color red !important
-  background url('../img/bg.png') no-repeat
+// @css 字面量
+@css {
+  .raw-css { color: red; }
+}
 
-// Boolean / null
-$enabled = true
-$disabled = false
-$empty = null
+// ---------- 14. 属性查找 ----------
+.lookup
+  width 100px
+  margin-left @width / 2
+  height @width
 
-// Attribute selectors
-[hidden]
-  display none
-a[target="_blank"]
-  color green
+// ---------- 15. 内置函数 ----------
+.builtins
+  color lighten(#3498db, 20%)
+  color darken(#3498db, 10%)
+  color rgba($primary, 0.5)
+  color mix(red, blue, 50%)
+  color grayscale(#abc)
+  color invert(#123)
+  color alpha(#ff0000, 0.5)
+  width unit(100, px)
+  content s('value: %s', 10)
+  z-index ceil(1.2)
+  top floor(1.8)
+  left round(1.5)
+  right abs(-10px)
+  margin min(10px, 20px)
+  padding max(5%, 10px)
+  font-size percentage(0.5)
+  border-radius unquote('5px')
+  background-image linear-gradient(to right, red, blue)
+  transform translateX(10px) translateY(-5%) rotate(45deg) scale(1.2)
+
+// ---------- 16. 多行值与逗号列表 ----------
+.multiline
+  box-shadow 0 1px 2px rgba(0, 0, 0, 0.1),
+            0 2px 4px rgba(0, 0, 0, 0.1),
+            0 4px 8px rgba(0, 0, 0, 0.1)
+  font-family 'Helvetica Neue',
+              Arial,
+              sans-serif
+  transition color .2s ease,
+             background .3s linear
+
+.multi-args
+  background linear-gradient(135deg,
+    #667eea 0%,
+    #764ba2 100%)
+
+// ---------- 17. 嵌套与缩进混合 ----------
+.deep
+  .level-1
+    .level-2
+      .level-3
+        color red
+
+        .level-4
+          color blue
+      .back-to-2
+        color green
+  .back-to-1
+    color gray
+
+// 缩进块中嵌套 brace 块
+.mixed
+  .indented
+    color red
+  .braced {
+    color: blue;
+    margin: 0;
+  }
+  .back-to-indented
+    color green
+
+// ---------- 18. 注释 ----------
+// 单行注释
+
+/*
+ * 多行注释
+ * 跨越多行
+ */
+
+.commented
+  color red // 行尾注释
+  /* 块注释 */ margin 0
+  // 整行注释
+  padding 10px
+
+// ---------- 19. 特殊边界 ----------
+// 空规则（brace）
+.empty { }
+
+// 单行 brace
+.single-line { color: red; margin: 0; }
+
+// 多声明单行
+.multi-decl { color: red; margin: 0; padding: 0 }
+
+// 以数字开头的类（转义场景少见，保持解析健壮）
+.numberish-1a2b
+  color red
+
+// 长连字符属性
+.-very-long_vendor-prefix_mixed
+  color red
+
+// URL 各种形态
+.urls
+  background url(image.png)
+  background url('quoted.png')
+  background url("double-quoted.png")
+  background url(data:image/png;base64,iVBORw0KGgo=)
+  background url(#gradient-ref)
+
+// 颜色各种形态
+.colors
+  color #abc
+  color #abcd
+  color #aabbcc
+  color #aabbccdd
+  border-color red
+  outline-color transparent
+  background currentColor

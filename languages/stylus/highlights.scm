@@ -26,9 +26,11 @@
 (call_expression function: (identifier) @function)
 (call_expression function: (variable) @function)
 (call_statement function: (identifier) @function)
+(call_statement function: (interpolated_name) @function)
 (mixin_definition name: (identifier) @function)
 (parameter (identifier) @variable.parameter)
 (parameter (variable) @variable.parameter)
+(named_argument (property_name) @variable.parameter)
 
 ; Values
 (color_value) @string.special
@@ -38,6 +40,7 @@
 (boolean_value) @boolean
 (null_value) @constant.builtin
 (important) @keyword
+(optional_flag) @keyword
 (url_value) @string.special
 (interpolation
   "{" @punctuation.special
