@@ -25,6 +25,8 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Rename refactoring that preserves each occurrence's `$` style
 - Document symbols for file-local variables and mixins, alongside the Tree-sitter selector outline
 - Document formatting powered by [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) (the community-standard Stylus formatter), guarded against its known unsafe cases, plus an always-safe whitespace engine
+- A from-scratch indentation-preserving formatter (the default engine) that normalizes indentation without changing your style, verified by structural, compiler, and idempotency checks
+- Range formatting: format just the selection with base-indent restoration
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
@@ -45,7 +47,7 @@ Measured against the feature table published by [sinejoe/zed-stylus-extension](h
 | Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
 | Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
 | Color picker | ✅ Literals, color-valued variables, and compiler-evaluated expressions, with hex/RGB/HSL presentations for literals | ⚠️ Untested |
-| Formatting | ✅ Guarded stylus-supremacy engine plus a safe whitespace engine | ⚠️ Untested |
+| Formatting | ✅ Style-preserving indent engine (default), guarded stylus-supremacy, whitespace engine, plus range formatting | ⚠️ Untested |
 
 Diagnostics currently report the compiler's first error per validation pass and do not include style linting. Document symbols and folding are provided by the Tree-sitter grammar rather than the language server.
 
@@ -95,16 +97,19 @@ Find-references and rename are workspace-wide: the server scans `.styl` files un
 
 ## Formatting
 
-Stylus has no official formatter, so the server integrates [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) — the engine behind the "Stylus Supremacy" VS Code extension, which is what most Stylus users format with. It runs with its own default options (CSS-style braces/colons/semicolons, its most-tested code path) and every option is pass-through configurable.
+The server ships three formatting engines. The default is our own **`indent`** engine, written from scratch for Stylus: it normalizes indentation to the configured unit, converts tabs, collapses blank-line runs, and trims trailing whitespace — without ever rewriting values, sorting properties, or changing your chosen style (indentation or braces). It proves safety on every run:
 
-Because the upstream engine has known correctness bugs on some valid Stylus, every format request goes through safety guards; when any guard trips, the file is left untouched and the reason is logged to the language-server log:
+1. The original and formatted documents must both compile with the official Stylus compiler
+2. The indentation-depth sequence must be identical before and after (only whitespace amounts change, never nesting)
+3. The output must be idempotent
 
-1. Documents containing scientific notation (e.g. `1e5px`, which the engine rewrites into invalid CSS) are refused
-2. Documents the engine cannot parse, including `@namespace ... url(...)` and syntactically broken files, are refused
-3. Outputs containing injected carriage returns are refused
-4. Outputs that are not stable when formatted twice (a known `@document` defect) are refused
+If any check fails, the file is left untouched and the reason is logged.
 
-An alternative `whitespace` engine only normalizes trailing whitespace, tab indentation, blank-line runs, and the final newline — it never rewrites values or style, so it is always safe.
+The second engine integrates [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) — the engine behind the "Stylus Supremacy" VS Code extension, which is what most Stylus users format with. Because that upstream engine has known correctness bugs on some valid Stylus, it runs behind guards and is refused for: documents with scientific notation (rewritten into invalid CSS), documents it cannot parse (including `@namespace ... url()`), outputs with injected carriage returns, and outputs that are not stable when formatted twice (a known `@document` defect). It runs with its own default options (CSS-style braces/colons/semicolons, its most-tested path).
+
+The third, `whitespace`, only trims trailing whitespace, converts tab indentation, collapses blank lines, and keeps the final newline — always safe.
+
+**Range formatting** works with all engines: the selection is dedented to its base indentation, formatted, and re-indented. With `indent` this works for any line range; with `supremacy` the selection must parse as a complete fragment, otherwise the request is refused.
 
 Configuration through Zed `settings.json`:
 
@@ -114,7 +119,7 @@ Configuration through Zed `settings.json`:
     "stylus-language-server": {
       "initialization_options": {
         "format": {
-          "engine": "supremacy",
+          "engine": "indent",
           "options": { "insertBraces": false, "insertSemicolons": false }
         }
       }
@@ -126,9 +131,10 @@ Configuration through Zed `settings.json`:
 }
 ```
 
-- `format.engine`: `"supremacy"` (default) or `"whitespace"`
-- `format.options`: any [stylus-supremacy option](https://thisismanta.github.io/stylus-supremacy) (`insertColons`, `insertBraces`, `tabStopChar`, `sortProperties`, …). Note that `insertBraces: false` (indentation-style output) follows the engine's least-tested path and can misformat complex files; the guards still apply
-- `format.tabStopChar` and `format.maxConsecutiveBlankLines` tune the whitespace engine
+- `format.engine`: `"indent"` (default), `"supremacy"`, or `"whitespace"`
+- `format.tabStopChar`: indentation unit for the `indent` and `whitespace` engines (default two spaces; Zed's per-language tab size is honored automatically when unset)
+- `format.maxConsecutiveBlankLines`: blank-line cap (default 1)
+- `format.options`: [stylus-supremacy options](https://thisismanta.github.io/stylus-supremacy) for the `supremacy` engine (`insertColons`, `insertBraces`, `sortProperties`, …). Note that `insertBraces: false` follows that engine's least-tested path and can misformat complex files; prefer the `indent` engine for indentation-style output
 
 ## Current Limitations
 
@@ -136,7 +142,7 @@ Configuration through Zed `settings.json`:
 - Cross-file indexing covers root-level symbols only; locals inside imported files stay invisible, matching Stylus scoping
 - Workspace references follow the reverse import graph from the declaration file; authoring inside `node_modules` is out of scope
 - The scope model is indentation-based and approximate: it does not model Stylus evaluation order, conditional redefinition, or property lookups (`@width`)
-- Formatting may refuse some valid documents for safety (see the guard list above); range formatting is not supported
+- Formatting may refuse some documents for safety (see the guard lists above); the `indent` engine normalizes whitespace only and does not reorder or align values
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
 - The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
 
@@ -258,7 +264,7 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 
 ### Formatting and Linting
 
-Formatting is available since v0.7 through the guarded stylus-supremacy engine and the safe whitespace engine. Remaining ideas: range formatting, a from-scratch indentation-preserving formatter to replace the fragile `insertBraces: false` path, and optional Stylelint integration for style rules the compiler does not cover.
+Formatting is available since v0.7 and range formatting since v0.11. The default `indent` engine (v0.11) is a from-scratch, style-preserving formatter verified by structural, compiler, and idempotency checks; the guarded stylus-supremacy and minimal whitespace engines remain available. Remaining ideas: optional Stylelint integration for style rules the compiler does not cover.
 
 ## Contributing
 

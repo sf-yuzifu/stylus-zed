@@ -3,7 +3,7 @@ use std::{env, fs};
 use zed_extension_api::{self as zed, Result};
 
 const PACKAGE_NAME: &str = "stylus-language-server";
-const PACKAGE_VERSION: &str = "0.10.1";
+const PACKAGE_VERSION: &str = "0.11.0";
 const SERVER_PATH: &str = "node_modules/stylus-language-server/bin/stylus-language-server.js";
 
 struct StylusExtension {

@@ -16,7 +16,7 @@ import { validateStylus } from "../src/diagnostics.js";
 import { getColorPresentations, getDocumentColors } from "../src/colors.js";
 import { getCompletions } from "../src/completion.js";
 import { evaluateExpressions } from "../src/evaluate.js";
-import { DEFAULT_FORMAT_CONFIG, formatDocument } from "../src/format.js";
+import { DEFAULT_FORMAT_CONFIG, formatDocument, formatDocumentRange } from "../src/format.js";
 import { getHover } from "../src/hover.js";
 import {
   getDefinition,
@@ -43,6 +43,7 @@ const fileListCache = new Map();
 const evalCache = new Map();
 let workspaceFolders = [];
 let formatConfig = DEFAULT_FORMAT_CONFIG;
+let tabStopCharExplicit = false;
 
 const FILE_LIST_TTL_MS = 5000;
 const FILE_INDEX_CACHE_MAX = 100;
@@ -50,6 +51,7 @@ const FILE_INDEX_CACHE_MAX = 100;
 connection.onInitialize((params) => {
   const requested = params.initializationOptions?.format;
   if (requested && typeof requested === "object") {
+    tabStopCharExplicit = "tabStopChar" in requested;
     formatConfig = {
       ...DEFAULT_FORMAT_CONFIG,
       ...requested,
@@ -84,6 +86,7 @@ connection.onInitialize((params) => {
       referencesProvider: true,
       renameProvider: { prepareProvider: true },
       documentFormattingProvider: true,
+      documentRangeFormattingProvider: true,
       documentSymbolProvider: true,
     },
     serverInfo: {
@@ -304,13 +307,38 @@ connection.onDocumentSymbol((params) => {
   return getDocumentSymbols(document.getText(), symbolsFor(document));
 });
 
+function configForRequest(params) {
+  if (tabStopCharExplicit || !params.options) return formatConfig;
+  const unit =
+    params.options.insertSpaces === false
+      ? "\t"
+      : " ".repeat(params.options.tabSize || 2);
+  return { ...formatConfig, tabStopChar: unit };
+}
+
 connection.onDocumentFormatting((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return null;
 
-  const result = formatDocument(document.getText(), formatConfig);
+  const result = formatDocument(document.getText(), configForRequest(params), {
+    uri: document.uri,
+  });
   if (result.refused) {
     connection.console.log(`Formatting skipped for ${document.uri}: ${result.refused}`);
+    return null;
+  }
+  return result.edits;
+});
+
+connection.onDocumentRangeFormatting((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+
+  const result = formatDocumentRange(document.getText(), params.range, configForRequest(params), {
+    uri: document.uri,
+  });
+  if (result.refused) {
+    connection.console.log(`Range formatting skipped for ${document.uri}: ${result.refused}`);
     return null;
   }
   return result.edits;

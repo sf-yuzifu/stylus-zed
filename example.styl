@@ -75,8 +75,8 @@ div
   color red
 
 .multiple,
-.selector,
-.list
+  .selector,
+  .list
   margin 0 auto
 
 .parent
@@ -93,7 +93,7 @@ div
   &:hover
     color blue
   &:active,
-  &:focus
+    &:focus
     color green
   &.compound
     color red
@@ -368,7 +368,7 @@ $spacing-reset =
 @font-face
   font-family 'Custom'
   src url('fonts/custom.woff2') format('woff2'),
-      url('fonts/custom.woff') format('woff')
+    url('fonts/custom.woff') format('woff')
   font-weight normal
   font-style normal
 
@@ -418,13 +418,13 @@ $spacing-reset =
 // ---------- 16. 多行值与逗号列表 ----------
 .multiline
   box-shadow 0 1px 2px rgba(0, 0, 0, 0.1),
-            0 2px 4px rgba(0, 0, 0, 0.1),
-            0 4px 8px rgba(0, 0, 0, 0.1)
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.1)
   font-family 'Helvetica Neue',
-              Arial,
-              sans-serif
+    Arial,
+    sans-serif
   transition color .2s ease,
-             background .3s linear
+    background .3s linear
 
 .multi-args
   background linear-gradient(135deg,
@@ -460,9 +460,9 @@ $spacing-reset =
 // 单行注释
 
 /*
- * 多行注释
- * 跨越多行
- */
+  * 多行注释
+  * 跨越多行
+  */
 
 .commented
   color red // 行尾注释
@@ -577,8 +577,8 @@ $feature = display
 
 // 深层逗号选择器 + 嵌套
 .deep-a,
-.deep-b .deep-c,
-.deep-d > .deep-e
+  .deep-b .deep-c,
+  .deep-d > .deep-e
   color red
 
 // 单位全覆盖
@@ -739,8 +739,8 @@ else
 // 参数换行且逗号放在下一行开头
 multi-line-params(
   x = 5
-, y = 10
-)
+  , y = 10
+  )
   padding y x
 
 // hash 对之间省略逗号
@@ -757,8 +757,8 @@ $object-no-commas = {
 
 // 行末反斜杠续行
 $continued = foo \
-             bar \
-             baz
+  bar \
+  baz
 
 // brace 放在下一行
 .brace-next-line

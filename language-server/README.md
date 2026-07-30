@@ -35,12 +35,11 @@ The server accepts `--stdio` and provides:
   file that can transitively import the declaration, using a reverse import
   graph over the workspace, while honoring each file's own scoping rules.
 - **Document symbols** — file-local variables and mixins/functions.
-- **Formatting** — powered by
-  [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy), the
-  community-standard Stylus formatter, behind safety guards that refuse
-  documents it mishandles (scientific notation, `@namespace url()`,
-  non-idempotent output, carriage-return injection). A conservative
-  whitespace-only engine is available as an always-safe alternative.
+- **Formatting** — three engines: a from-scratch style-preserving `indent`
+  engine (default) verified by structural, compiler, and idempotency checks;
+  [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) behind
+  safety guards; and a minimal whitespace engine. Range formatting is
+  supported for whole documents and selections.
 
 CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
 read from the installed compiler's own sources. File-local symbols use a

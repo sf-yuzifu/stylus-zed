@@ -105,6 +105,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   assert.equal(initialize.result.capabilities.colorProvider, true);
   assert.ok(initialize.result.capabilities.signatureHelpProvider.triggerCharacters.includes("("));
   assert.equal(initialize.result.capabilities.documentFormattingProvider, true);
+  assert.equal(initialize.result.capabilities.documentRangeFormattingProvider, true);
   assert.equal(initialize.result.capabilities.documentSymbolProvider, true);
 
   server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
@@ -137,7 +138,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/didChange",
     params: {
       textDocument: { uri, version: 2 },
-      contentChanges: [{ text: "$w = rgba(1, 2, 3, 0.5)\nbody\n  width $w\n  color red" }],
+      contentChanges: [{ text: "$w = rgba(1, 2, 3, 0.5)\nbody\n    width $w\n    .child\n        color red" }],
     },
   });
 
@@ -155,7 +156,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/completion",
     params: {
       textDocument: { uri },
-      position: { line: 3, character: 8 },
+      position: { line: 4, character: 14 },
     },
   });
   const completion = await server.waitFor((message) => message.id === 3);
@@ -169,7 +170,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/hover",
     params: {
       textDocument: { uri },
-      position: { line: 3, character: 3 },
+      position: { line: 4, character: 10 },
     },
   });
   const hover = await server.waitFor((message) => message.id === 4);
@@ -204,7 +205,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/definition",
     params: {
       textDocument: { uri },
-      position: { line: 2, character: 8 },
+      position: { line: 2, character: 10 },
     },
   });
   const definition = await server.waitFor((message) => message.id === 7);
@@ -216,7 +217,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/references",
     params: {
       textDocument: { uri },
-      position: { line: 2, character: 8 },
+      position: { line: 2, character: 10 },
       context: { includeDeclaration: true },
     },
   });
@@ -232,7 +233,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/rename",
     params: {
       textDocument: { uri },
-      position: { line: 2, character: 8 },
+      position: { line: 2, character: 10 },
       newName: "size",
     },
   });
@@ -251,7 +252,27 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   });
   const formatting = await server.waitFor((message) => message.id === 10);
   assert.equal(formatting.result.length, 1);
-  assert.match(formatting.result[0].newText, /body \{/);
+  assert.match(formatting.result[0].newText, /\n {2}width \$w/);
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 12,
+    method: "textDocument/rangeFormatting",
+    params: {
+      textDocument: { uri },
+      range: {
+        start: { line: 3, character: 4 },
+        end: { line: 4, character: 18 },
+      },
+      options: { tabSize: 2, insertSpaces: true },
+    },
+  });
+  const rangeFormatting = await server.waitFor((message) => message.id === 12);
+  assert.equal(rangeFormatting.result.length, 1);
+  assert.equal(
+    rangeFormatting.result[0].newText,
+    "    .child\n      color red",
+  );
 
   server.send({
     jsonrpc: "2.0",

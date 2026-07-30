@@ -11,7 +11,7 @@ function editText(result) {
 
 test("supremacy engine formats valid documents", () => {
   const source = ".a\n  color :red ;\n";
-  const result = formatDocument(source);
+  const result = formatDocument(source, { engine: "supremacy" });
 
   const formatted = editText(result);
   assert.match(formatted, /\.a \{/);
@@ -33,25 +33,25 @@ test("supremacy engine passes options through", () => {
 
 test("supremacy engine is idempotent on formatted output", () => {
   const source = ".a\n  color :red ;\n";
-  const once = editText(formatDocument(source));
-  const twice = formatDocument(once);
+  const once = editText(formatDocument(source, { engine: "supremacy" }));
+  const twice = formatDocument(once, { engine: "supremacy" });
 
   assert.deepEqual(twice.edits, []);
 });
 
 test("guard refuses scientific notation", () => {
-  const result = formatDocument(".a\n  width 1e5px\n");
+  const result = formatDocument(".a\n  width 1e5px\n", { engine: "supremacy" });
   assert.match(result.refused, /scientific notation/);
 });
 
 test("guard refuses documents the formatter cannot parse", () => {
-  assert.ok(formatDocument(".a\n  color rgba(1,\n").refused);
-  assert.ok(formatDocument('@namespace svg url("http://x")\n').refused);
+  assert.ok(formatDocument(".a\n  color rgba(1,\n", { engine: "supremacy" }).refused);
+  assert.ok(formatDocument('@namespace svg url("http://x")\n', { engine: "supremacy" }).refused);
 });
 
 test("guard refuses non-idempotent output", () => {
   const source = '@document url("https://example.com")\n  body\n    color black\n';
-  const result = formatDocument(source);
+  const result = formatDocument(source, { engine: "supremacy" });
   assert.match(result.refused, /not idempotent/);
 });
 
