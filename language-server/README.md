@@ -24,6 +24,10 @@ The server accepts `--stdio` and provides:
   variables, mixins, and functions. Resolution is scope-aware: it understands
   indentation-based visibility, shadowing, parameters, and loop variables,
   and rename preserves each occurrence's `$` style.
+- **Cross-file symbols** — root-level variables and mixins from `@import`ed
+  files (resolved with the compiler's lookup rules, with cycle protection)
+  appear in completions, hover, and go-to-definition, which jumps into the
+  dependency. The index tracks imported files' modification times.
 
 CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
 read from the installed compiler's own sources. File-local symbols use a

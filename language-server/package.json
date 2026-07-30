@@ -1,6 +1,6 @@
 {
   "name": "stylus-language-server",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Language server for Stylus powered by the official Stylus compiler",
   "type": "module",
   "bin": {
@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js && node --check src/symbols.js && node --check src/completion.js && node --check src/hover.js && node --check src/colors.js && node --check src/signature.js && node --check src/navigation.js && node --check src/text.js && node --check src/data/css.js && node --check src/data/builtins.js && node --check src/data/colors.js && node --check src/data/html.js",
+    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js && node --check src/symbols.js && node --check src/completion.js && node --check src/hover.js && node --check src/colors.js && node --check src/signature.js && node --check src/navigation.js && node --check src/workspace.js && node --check src/text.js && node --check src/data/css.js && node --check src/data/builtins.js && node --check src/data/colors.js && node --check src/data/html.js",
     "test": "node --test"
   },
   "engines": {

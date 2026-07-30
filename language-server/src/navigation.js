@@ -4,12 +4,16 @@ import { escapeRegExp, makeCommentTracker, tokenAt } from "./text.js";
 function declarationOnLine(index, name, lineNumber) {
   const plain = name.replace(/^\$/, "");
   for (const variable of index.variables) {
-    if (variable.line === lineNumber && variable.name.replace(/^\$/, "") === plain) {
+    if (
+      !variable.imported &&
+      variable.line === lineNumber &&
+      variable.name.replace(/^\$/, "") === plain
+    ) {
       return { symbol: variable, type: "variable" };
     }
   }
   for (const fn of index.functions) {
-    if (fn.line === lineNumber && fn.name === plain) {
+    if (!fn.imported && fn.line === lineNumber && fn.name === plain) {
       return { symbol: fn, type: "function" };
     }
   }
@@ -31,8 +35,8 @@ export function resolveAt(index, name, lineNumber) {
   return undefined;
 }
 
-function nameRangeInLine(lines, symbol) {
-  const lineText = lines[symbol.line] ?? "";
+function nameRangeInText(fileText, symbol) {
+  const lineText = fileText.split(/\r?\n/)[symbol.line] ?? "";
   const plain = symbol.name.replace(/^\$/, "");
   let start = lineText.indexOf(symbol.name);
   let length = symbol.name.length;
@@ -47,7 +51,7 @@ function nameRangeInLine(lines, symbol) {
   };
 }
 
-export function getDefinition(text, position, index, uri) {
+export function getDefinition(text, position, index, uri, resolveText) {
   const lines = text.split(/\r?\n/);
   const token = tokenAt(lines[position.line] ?? "", position.character);
   if (!token || token.text.startsWith("@") || token.text.startsWith(":")) {
@@ -57,9 +61,13 @@ export function getDefinition(text, position, index, uri) {
   const resolved = resolveAt(index, token.text, position.line);
   if (!resolved) return null;
 
+  const targetUri = resolved.symbol.uri ?? uri;
+  const targetText = targetUri === uri ? text : resolveText?.(targetUri);
+  if (targetText == null) return null;
+
   return {
-    uri,
-    range: nameRangeInLine(lines, resolved.symbol),
+    uri: targetUri,
+    range: nameRangeInText(targetText, resolved.symbol),
   };
 }
 
@@ -76,7 +84,7 @@ function followedByAssignment(line, end) {
   return /^\s*(=|\?=|:=)/.test(line.slice(end));
 }
 
-export function getReferences(text, position, index, uri, includeDeclaration = true) {
+export function getReferences(text, position, index, uri, includeDeclaration = true, resolveText) {
   const lines = text.split(/\r?\n/);
   const token = tokenAt(lines[position.line] ?? "", position.character);
   if (!token) return [];
@@ -85,9 +93,11 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
   if (!resolved) return [];
 
   const target = resolved.symbol;
+  const targetUri = target.uri ?? uri;
   const regex = occurrenceRegex(target.name);
   const trackComments = makeCommentTracker();
   const references = [];
+  const targetRange = targetUri === uri ? nameRangeInText(text, target) : null;
 
   for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
     const line = lines[lineNumber];
@@ -100,7 +110,11 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
       const end = start + match[0].length;
       if (commentMask[start]) continue;
 
-      const isDeclaration = lineNumber === target.line && start <= nameRangeInLine(lines, target).start.character && end >= nameRangeInLine(lines, target).end.character;
+      const isDeclaration =
+        targetRange !== null &&
+        lineNumber === target.line &&
+        start <= targetRange.start.character &&
+        end >= targetRange.end.character;
 
       if (!isDeclaration) {
         if (resolved.type === "variable" && !match[0].startsWith("$")) {
@@ -131,6 +145,18 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
     }
   }
 
+  if (targetUri !== uri && includeDeclaration) {
+    const originText = resolveText?.(targetUri);
+    if (originText != null) {
+      references.unshift({
+        uri: targetUri,
+        range: nameRangeInText(originText, target),
+        text: target.name,
+        declaration: true,
+      });
+    }
+  }
+
   return references;
 }
 
@@ -151,16 +177,17 @@ export function getPrepareRename(text, position, index) {
   };
 }
 
-export function getRenameEdits(text, position, index, uri, newName) {
+export function getRenameEdits(text, position, index, uri, newName, resolveText) {
   const plain = newName.replace(/^\$/, "");
-  const references = getReferences(text, position, index, uri, true);
+  const references = getReferences(text, position, index, uri, true, resolveText);
 
-  return {
-    changes: {
-      [uri]: references.map((reference) => ({
-        range: reference.range,
-        newText: `${reference.text.startsWith("$") ? "$" : ""}${plain}`,
-      })),
-    },
-  };
+  const changes = {};
+  for (const reference of references) {
+    const edit = {
+      range: reference.range,
+      newText: `${reference.text.startsWith("$") ? "$" : ""}${plain}`,
+    };
+    (changes[reference.uri] ??= []).push(edit);
+  }
+  return { changes };
 }

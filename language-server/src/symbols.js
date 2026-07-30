@@ -218,7 +218,7 @@ function resolveIn(symbols, name, line) {
   let best;
   for (const symbol of symbols) {
     if (symbol.name.replace(/^\$/, "") !== plain) continue;
-    if (!visibleAt(symbol, line)) continue;
+    if (!symbol.imported && !visibleAt(symbol, line)) continue;
     if (
       !best ||
       symbol.indent > best.indent ||

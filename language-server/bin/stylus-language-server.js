@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+import { readFileSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import {
   createConnection,
   ProposedFeatures,
@@ -19,7 +22,7 @@ import {
   getRenameEdits,
 } from "../src/navigation.js";
 import { getSignatureHelp } from "../src/signature.js";
-import { indexDocument } from "../src/symbols.js";
+import { collectWorkspaceIndex } from "../src/workspace.js";
 
 const CHANGE_DEBOUNCE_MS = 200;
 const connection = createConnection(ProposedFeatures.all);
@@ -57,10 +60,34 @@ connection.onInitialize(() => ({
 
 function symbolsFor(document) {
   const cached = symbolCache.get(document.uri);
-  if (cached && cached.version === document.version) return cached.index;
-  const index = indexDocument(document.getText());
-  symbolCache.set(document.uri, { version: document.version, index });
+  if (
+    cached &&
+    cached.version === document.version &&
+    cached.files.every((file) => file.mtime === mtimeOf(file.uri))
+  ) {
+    return cached.index;
+  }
+  const { index, files } = collectWorkspaceIndex(document.uri, document.getText());
+  symbolCache.set(document.uri, { version: document.version, files, index });
   return index;
+}
+
+function mtimeOf(uri) {
+  try {
+    return statSync(fileURLToPath(uri)).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+function resolveText(uri) {
+  const open = documents.get(uri);
+  if (open) return open.getText();
+  try {
+    return readFileSync(fileURLToPath(uri), "utf8");
+  } catch {
+    return null;
+  }
 }
 
 connection.onCompletion((params) => {
@@ -106,6 +133,7 @@ connection.onDefinition((params) => {
     params.position,
     symbolsFor(document),
     document.uri,
+    resolveText,
   );
 });
 
@@ -118,6 +146,7 @@ connection.onReferences((params) => {
     symbolsFor(document),
     document.uri,
     params.context.includeDeclaration,
+    resolveText,
   ).map(({ uri, range }) => ({ uri, range }));
 });
 
@@ -136,6 +165,7 @@ connection.onRenameRequest((params) => {
     symbolsFor(document),
     document.uri,
     params.newName,
+    resolveText,
   );
 });
 

@@ -54,6 +54,7 @@ function variableItems(index, line) {
   const visible = index.variables
     .filter(
       (variable) =>
+        variable.imported ||
         variable.line === line ||
         (variable.line < line && line <= variable.endLine),
     )
@@ -65,13 +66,15 @@ function variableItems(index, line) {
     const plain = variable.name.replace(/^\$/, "");
     if (seen.has(plain)) continue;
     seen.add(plain);
+    const origin = variable.uri ? ` — ${basename(variable.uri)}` : "";
     items.push({
       label: variable.name,
       kind: Kind.Variable,
-      detail:
+      detail: `${
         variable.value.length > 60
           ? `${variable.value.slice(0, 57)}…`
-          : variable.value,
+          : variable.value
+      }${origin}`,
       documentation: markdown(variable.doc),
     });
   }
@@ -84,10 +87,11 @@ function functionItems(index) {
   for (const fn of index.functions) {
     if (seen.has(fn.name)) continue;
     seen.add(fn.name);
+    const origin = fn.uri ? ` — ${basename(fn.uri)}` : "";
     items.push({
       label: fn.name,
       kind: Kind.Function,
-      detail: `${fn.name}(${fn.params})`,
+      detail: `${fn.name}(${fn.params})${origin}`,
       documentation: markdown(fn.doc),
       ...(fn.params
         ? { insertText: `${fn.name}($0)`, insertTextFormat: Snippet }
@@ -95,6 +99,14 @@ function functionItems(index) {
     });
   }
   return items;
+}
+
+function basename(uri) {
+  try {
+    return decodeURIComponent(new URL(uri).pathname.split("/").pop());
+  } catch {
+    return uri;
+  }
 }
 
 function builtinItems() {

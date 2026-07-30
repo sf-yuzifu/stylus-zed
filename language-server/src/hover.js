@@ -3,6 +3,14 @@ import { getBuiltin } from "./data/builtins.js";
 import { resolveAt } from "./navigation.js";
 import { tokenAt } from "./text.js";
 
+function basename(uri) {
+  try {
+    return decodeURIComponent(new URL(uri).pathname.split("/").pop());
+  } catch {
+    return uri;
+  }
+}
+
 function codeBlock(language, code) {
   return `\`\`\`${language}\n${code}\n\`\`\``;
 }
@@ -35,6 +43,7 @@ export function getHover(text, position, index) {
     const parts = [codeBlock("stylus", declaration)];
     if (variable.doc) parts.push(variable.doc);
     if (variable.kind === "param") parts.push("Function parameter.");
+    if (variable.uri) parts.push(`Imported from \`${basename(variable.uri)}\`.`);
     return hoverResult(parts.join("\n\n"), position.line, token);
   }
 
@@ -42,6 +51,7 @@ export function getHover(text, position, index) {
     const fn = resolved.symbol;
     const parts = [codeBlock("stylus", `${fn.name}(${fn.params})`)];
     parts.push(fn.doc ?? "User-defined mixin or function.");
+    if (fn.uri) parts.push(`Imported from \`${basename(fn.uri)}\`.`);
     return hoverResult(parts.join("\n\n"), position.line, token);
   }
 
