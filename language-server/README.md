@@ -25,9 +25,11 @@ The server accepts `--stdio` and provides:
   indentation-based visibility, shadowing, parameters, and loop variables,
   and rename preserves each occurrence's `$` style.
 - **Cross-file symbols** — root-level variables and mixins from `@import`ed
-  files (resolved with the compiler's lookup rules, with cycle protection)
-  appear in completions, hover, and go-to-definition, which jumps into the
-  dependency. The index tracks imported files' modification times.
+  files appear in completions, hover, and go-to-definition, which jumps into
+  the dependency. Resolution follows the compiler's lookup rules: relative
+  paths, `index.styl`, `node_modules` packages (including `package.json`
+  `main` and scoped packages), and glob imports, with cycle protection. The
+  index tracks imported files' modification times.
 - **Workspace references** — find-references and rename span every `.styl`
   file that can transitively import the declaration, using a reverse import
   graph over the workspace, while honoring each file's own scoping rules.

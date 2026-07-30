@@ -89,7 +89,7 @@ Signature help resolves the innermost call at the cursor — user mixins with th
 
 Navigation is scope-aware: the indexer computes the visibility range of every declaration from the indentation tree, so go-to-definition, find-references, and rename all understand shadowing. A variable declared inside a rule shadows the outer one only within its block, parameters and loop variables win inside their function bodies, and references that resolve to a different (shadowed) declaration are excluded. Rename preserves the `$` prefix style of each individual occurrence.
 
-Cross-file support follows `@import`/`@require` using the compiler's lookup rules (relative paths, `.styl` completion, `index.styl`), with cycle protection and a depth cap. Root-level variables and mixins from imported files appear in completions and hover with their origin file noted, and go-to-definition jumps into the dependency. The index cache tracks imported files' modification times, so edits on disk are picked up automatically.
+Cross-file support follows `@import`/`@require` using the compiler's lookup rules: relative paths, `.styl` completion, `index.styl` and same-named files, `node_modules` packages (including `package.json` `main` and scoped packages), and glob imports such as `@import "parts/*.styl"` (capped for safety), with cycle protection and a depth cap. Root-level variables and mixins from imported files appear in completions and hover with their origin file noted, and go-to-definition jumps into the dependency — including into `node_modules`. The index cache tracks imported files' modification times, so edits on disk are picked up automatically.
 
 Find-references and rename are workspace-wide: the server scans `.styl` files under the workspace folders (excluding `node_modules`, capped for large trees), builds the reverse import graph, and collects occurrences from every file that can transitively reach the declaration — while still applying each file's own scoping rules, so same-named locals in unrelated files never leak in. Renaming applies edits across all affected files at once.
 
@@ -133,8 +133,8 @@ Configuration through Zed `settings.json`:
 ## Current Limitations
 
 - Diagnostics report the compiler's first error per validation pass, not every error at once
-- Cross-file indexing covers root-level symbols from the `@import` chain only; `node_modules` package resolution and glob imports are not indexed
-- Workspace references follow the reverse import graph from the declaration file; `node_modules` importers are out of scope
+- Cross-file indexing covers root-level symbols only; locals inside imported files stay invisible, matching Stylus scoping
+- Workspace references follow the reverse import graph from the declaration file; authoring inside `node_modules` is out of scope
 - The scope model is indentation-based and approximate: it does not model Stylus evaluation order, conditional redefinition, or property lookups (`@width`)
 - Formatting may refuse some valid documents for safety (see the guard list above); range formatting is not supported
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
@@ -252,9 +252,8 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 - File-local variables, mixins, functions, and parameters — done; navigation is scope-aware since v0.5
 - Signature help and color swatches/presentations — done in v0.4
 - Go-to-definition, references, and rename — done in v0.5
-- Cross-file symbol indexing following `@import` — done in v0.6; workspace-wide references and rename across all importers — done in v0.8
+- Cross-file symbol indexing following `@import` — done in v0.6; workspace-wide references and rename across all importers — done in v0.8; `node_modules` and glob imports — done in v0.9
 - Document symbols for variables/mixins — done in v0.8 (the Tree-sitter outline covers selectors)
-- `node_modules` package resolution and glob imports for cross-file indexing
 - Evaluated colors (e.g. `lighten()` results) for swatches
 
 ### Formatting and Linting

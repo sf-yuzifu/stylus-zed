@@ -2,7 +2,7 @@ import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { importSpecs, resolveImport } from "./workspace.js";
+import { importSpecs, resolveImports } from "./workspace.js";
 
 const IGNORED_DIRS = new Set(["node_modules", ".git", ".hg", ".svn", "dist", "out"]);
 const MAX_FILES = 1000;
@@ -52,8 +52,9 @@ export function listStylusFiles(rootUri) {
 export function directImportUris(uri, text) {
   const uris = [];
   for (const spec of importSpecs(text)) {
-    const resolved = resolveImport(spec, uri);
-    if (resolved) uris.push(pathToFileURL(resolved).href);
+    for (const resolved of resolveImports(spec, uri)) {
+      uris.push(pathToFileURL(resolved).href);
+    }
   }
   return uris;
 }
