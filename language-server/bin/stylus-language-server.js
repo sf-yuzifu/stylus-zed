@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { readFileSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   createConnection,
@@ -19,11 +20,16 @@ import { getHover } from "../src/hover.js";
 import {
   getDefinition,
   getPrepareRename,
-  getReferences,
-  getRenameEdits,
+  targetAt,
 } from "../src/navigation.js";
 import { getSignatureHelp } from "../src/signature.js";
 import { collectWorkspaceIndex } from "../src/workspace.js";
+import { listStylusFiles, reverseReachable } from "../src/workspaceFiles.js";
+import {
+  getDocumentSymbols,
+  getWorkspaceReferences,
+  getWorkspaceRenameEdits,
+} from "../src/workspaceRefs.js";
 
 const CHANGE_DEBOUNCE_MS = 200;
 const connection = createConnection(ProposedFeatures.all);
@@ -31,7 +37,13 @@ const documents = new TextDocuments(TextDocument);
 const timers = new Map();
 const resultsByDocument = new Map();
 const symbolCache = new Map();
+const fileIndexCache = new Map();
+const fileListCache = new Map();
+let workspaceFolders = [];
 let formatConfig = DEFAULT_FORMAT_CONFIG;
+
+const FILE_LIST_TTL_MS = 5000;
+const FILE_INDEX_CACHE_MAX = 100;
 
 connection.onInitialize((params) => {
   const requested = params.initializationOptions?.format;
@@ -41,6 +53,12 @@ connection.onInitialize((params) => {
       ...requested,
       options: requested.options ?? {},
     };
+  }
+
+  if (Array.isArray(params.workspaceFolders) && params.workspaceFolders.length > 0) {
+    workspaceFolders = params.workspaceFolders.map((folder) => folder.uri);
+  } else if (params.rootUri) {
+    workspaceFolders = [params.rootUri];
   }
 
   return {
@@ -64,10 +82,11 @@ connection.onInitialize((params) => {
       referencesProvider: true,
       renameProvider: { prepareProvider: true },
       documentFormattingProvider: true,
+      documentSymbolProvider: true,
     },
     serverInfo: {
       name: "stylus-language-server",
-      version: "0.7.0",
+      version: "0.8.0",
     },
   };
 });
@@ -102,6 +121,47 @@ function resolveText(uri) {
   } catch {
     return null;
   }
+}
+
+function listCandidateUris(currentUri) {
+  const roots =
+    workspaceFolders.length > 0
+      ? workspaceFolders
+      : [pathToFileURL(path.dirname(fileURLToPath(currentUri))).href];
+
+  const uris = new Set([currentUri]);
+  for (const root of roots) {
+    const cached = fileListCache.get(root);
+    if (cached && Date.now() - cached.time < FILE_LIST_TTL_MS) {
+      for (const file of cached.files) uris.add(file);
+      continue;
+    }
+    const files = listStylusFiles(root);
+    fileListCache.set(root, { time: Date.now(), files });
+    for (const file of files) uris.add(file);
+  }
+  return [...uris];
+}
+
+function indexForFile(uri) {
+  const text = resolveText(uri);
+  if (text == null) return null;
+
+  const openVersion = documents.get(uri)?.version ?? null;
+  const cached = fileIndexCache.get(uri);
+  if (
+    cached &&
+    cached.openVersion === openVersion &&
+    cached.files.every((file) => file.mtime === mtimeOf(file.uri))
+  ) {
+    return cached;
+  }
+
+  const entry = collectWorkspaceIndex(uri, text);
+  entry.openVersion = openVersion;
+  if (fileIndexCache.size >= FILE_INDEX_CACHE_MAX) fileIndexCache.clear();
+  fileIndexCache.set(uri, entry);
+  return entry;
 }
 
 connection.onCompletion((params) => {
@@ -154,14 +214,28 @@ connection.onDefinition((params) => {
 connection.onReferences((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return [];
-  return getReferences(
-    document.getText(),
-    params.position,
-    symbolsFor(document),
-    document.uri,
-    params.context.includeDeclaration,
+  const index = symbolsFor(document);
+  const text = document.getText();
+
+  const target = getWorkspaceReferences({
+    text,
+    position: params.position,
+    index,
+    uri: document.uri,
+    includeDeclaration: params.context.includeDeclaration,
     resolveText,
-  ).map(({ uri, range }) => ({ uri, range }));
+    listCandidateUris: () => {
+      const candidates = listCandidateUris(document.uri);
+      const token = targetAt(text, params.position, index);
+      const targetUri = token?.resolved.symbol.uri ?? document.uri;
+      return token
+        ? [...reverseReachable(targetUri, candidates, resolveText)]
+        : [document.uri];
+    },
+    indexForFile,
+  }).map(({ uri, range }) => ({ uri, range }));
+
+  return target;
 });
 
 connection.onPrepareRename((params) => {
@@ -173,14 +247,32 @@ connection.onPrepareRename((params) => {
 connection.onRenameRequest((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return null;
-  return getRenameEdits(
-    document.getText(),
-    params.position,
-    symbolsFor(document),
-    document.uri,
-    params.newName,
+  const index = symbolsFor(document);
+  const text = document.getText();
+
+  return getWorkspaceRenameEdits({
+    text,
+    position: params.position,
+    index,
+    uri: document.uri,
+    newName: params.newName,
     resolveText,
-  );
+    listCandidateUris: () => {
+      const candidates = listCandidateUris(document.uri);
+      const token = targetAt(text, params.position, index);
+      const targetUri = token?.resolved.symbol.uri ?? document.uri;
+      return token
+        ? [...reverseReachable(targetUri, candidates, resolveText)]
+        : [document.uri];
+    },
+    indexForFile,
+  });
+});
+
+connection.onDocumentSymbol((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return [];
+  return getDocumentSymbols(document.getText(), symbolsFor(document));
 });
 
 connection.onDocumentFormatting((params) => {

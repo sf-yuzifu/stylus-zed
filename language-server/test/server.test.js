@@ -105,6 +105,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   assert.equal(initialize.result.capabilities.colorProvider, true);
   assert.ok(initialize.result.capabilities.signatureHelpProvider.triggerCharacters.includes("("));
   assert.equal(initialize.result.capabilities.documentFormattingProvider, true);
+  assert.equal(initialize.result.capabilities.documentSymbolProvider, true);
 
   server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
   server.send({
@@ -251,6 +252,18 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   const formatting = await server.waitFor((message) => message.id === 10);
   assert.equal(formatting.result.length, 1);
   assert.match(formatting.result[0].newText, /body \{/);
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 11,
+    method: "textDocument/documentSymbol",
+    params: { textDocument: { uri } },
+  });
+  const documentSymbol = await server.waitFor((message) => message.id === 11);
+  assert.deepEqual(
+    documentSymbol.result.map((symbol) => symbol.name),
+    ["$w"],
+  );
 
   server.send({
     jsonrpc: "2.0",

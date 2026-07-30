@@ -53,14 +53,16 @@ function isTrivial(line) {
 }
 
 function blockEnd(lines, startLine, indent, inclusive) {
+  let lastMeaningful = startLine;
   for (let i = startLine + 1; i < lines.length; i++) {
     if (isTrivial(lines[i])) continue;
     const lineIndent = indentation(lines[i]);
     if (inclusive ? lineIndent < indent : lineIndent <= indent) {
-      return i - 1;
+      return lastMeaningful;
     }
+    lastMeaningful = i;
   }
-  return lines.length - 1;
+  return lastMeaningful;
 }
 
 function docAbove(lines, lineIndex) {
@@ -197,6 +199,7 @@ export function indexDocument(text) {
           line: i,
           indent,
           endLine: blockEnd(lines, i, indent, true),
+          bodyEnd,
           kind: "function",
           doc: docAbove(lines, i),
         };

@@ -28,6 +28,10 @@ The server accepts `--stdio` and provides:
   files (resolved with the compiler's lookup rules, with cycle protection)
   appear in completions, hover, and go-to-definition, which jumps into the
   dependency. The index tracks imported files' modification times.
+- **Workspace references** — find-references and rename span every `.styl`
+  file that can transitively import the declaration, using a reverse import
+  graph over the workspace, while honoring each file's own scoping rules.
+- **Document symbols** — file-local variables and mixins/functions.
 - **Formatting** — powered by
   [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy), the
   community-standard Stylus formatter, behind safety guards that refuse

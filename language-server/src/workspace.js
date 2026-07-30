@@ -63,6 +63,7 @@ function mtimeOf(filePath) {
 export function collectWorkspaceIndex(uri, text) {
   const index = indexDocument(text);
   const files = [{ uri, mtime: mtimeOf(safeFilePath(uri)) }];
+  const importClosure = new Set();
   const seen = new Set([safeFilePath(uri)]);
 
   function visit(currentUri, currentText, depth) {
@@ -82,6 +83,7 @@ export function collectWorkspaceIndex(uri, text) {
 
       const fileUri = pathToFileURL(resolved).href;
       files.push({ uri: fileUri, mtime: mtimeOf(resolved) });
+      importClosure.add(fileUri);
 
       const fileIndex = indexDocument(fileText);
       for (const variable of fileIndex.variables) {
@@ -100,7 +102,7 @@ export function collectWorkspaceIndex(uri, text) {
   }
 
   visit(uri, text, 0);
-  return { index, files };
+  return { index, files, importClosure };
 }
 
 function safeFilePath(uri) {

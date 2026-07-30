@@ -84,15 +84,24 @@ function followedByAssignment(line, end) {
   return /^\s*(=|\?=|:=)/.test(line.slice(end));
 }
 
-export function getReferences(text, position, index, uri, includeDeclaration = true, resolveText) {
+export function targetAt(text, position, index) {
   const lines = text.split(/\r?\n/);
   const token = tokenAt(lines[position.line] ?? "", position.character);
-  if (!token) return [];
-
+  if (!token) return undefined;
   const resolved = resolveAt(index, token.text, position.line);
-  if (!resolved) return [];
+  return resolved ? { token, resolved } : undefined;
+}
 
-  const target = resolved.symbol;
+function sameSymbol(a, aFallbackUri, b, bFallbackUri) {
+  return (
+    a.name === b.name &&
+    a.line === b.line &&
+    (a.uri ?? aFallbackUri) === (b.uri ?? bFallbackUri)
+  );
+}
+
+export function scanOccurrences(text, index, target, type, uri, includeDeclaration, resolveText, includeOriginDeclaration = false) {
+  const lines = text.split(/\r?\n/);
   const targetUri = target.uri ?? uri;
   const regex = occurrenceRegex(target.name);
   const trackComments = makeCommentTracker();
@@ -117,17 +126,17 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
         end >= targetRange.end.character;
 
       if (!isDeclaration) {
-        if (resolved.type === "variable" && !match[0].startsWith("$")) {
+        if (type === "variable" && !match[0].startsWith("$")) {
           if (isFirstToken(line, start) && !followedByAssignment(line, end)) {
             continue;
           }
         }
-        if (resolved.type === "function" && line[end] !== "(") {
+        if (type === "function" && line[end] !== "(") {
           continue;
         }
 
         const scope = resolveAt(index, match[0], lineNumber);
-        if (!scope || scope.symbol.line !== target.line || scope.symbol.name !== target.name) {
+        if (!scope || !sameSymbol(scope.symbol, uri, target, uri)) {
           continue;
         }
       } else if (!includeDeclaration) {
@@ -145,7 +154,7 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
     }
   }
 
-  if (targetUri !== uri && includeDeclaration) {
+  if (targetUri !== uri && includeDeclaration && includeOriginDeclaration) {
     const originText = resolveText?.(targetUri);
     if (originText != null) {
       references.unshift({
@@ -158,6 +167,21 @@ export function getReferences(text, position, index, uri, includeDeclaration = t
   }
 
   return references;
+}
+
+export function getReferences(text, position, index, uri, includeDeclaration = true, resolveText) {
+  const found = targetAt(text, position, index);
+  if (!found) return [];
+  return scanOccurrences(
+    text,
+    index,
+    found.resolved.symbol,
+    found.resolved.type,
+    uri,
+    includeDeclaration,
+    resolveText,
+    true,
+  );
 }
 
 export function getPrepareRename(text, position, index) {
