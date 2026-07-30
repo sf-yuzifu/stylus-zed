@@ -14,6 +14,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { validateStylus } from "../src/diagnostics.js";
 import { getColorPresentations, getDocumentColors } from "../src/colors.js";
 import { getCompletions } from "../src/completion.js";
+import { DEFAULT_FORMAT_CONFIG, formatDocument } from "../src/format.js";
 import { getHover } from "../src/hover.js";
 import {
   getDefinition,
@@ -30,33 +31,46 @@ const documents = new TextDocuments(TextDocument);
 const timers = new Map();
 const resultsByDocument = new Map();
 const symbolCache = new Map();
+let formatConfig = DEFAULT_FORMAT_CONFIG;
 
-connection.onInitialize(() => ({
-  capabilities: {
-    textDocumentSync: {
-      openClose: true,
-      change: TextDocumentSyncKind.Incremental,
-      save: { includeText: false },
+connection.onInitialize((params) => {
+  const requested = params.initializationOptions?.format;
+  if (requested && typeof requested === "object") {
+    formatConfig = {
+      ...DEFAULT_FORMAT_CONFIG,
+      ...requested,
+      options: requested.options ?? {},
+    };
+  }
+
+  return {
+    capabilities: {
+      textDocumentSync: {
+        openClose: true,
+        change: TextDocumentSyncKind.Incremental,
+        save: { includeText: false },
+      },
+      completionProvider: {
+        triggerCharacters: ["$", "@", ":", "-", "(", " ", "."],
+        resolveProvider: false,
+      },
+      hoverProvider: true,
+      colorProvider: true,
+      signatureHelpProvider: {
+        triggerCharacters: ["(", ","],
+        retriggerCharacters: [","],
+      },
+      definitionProvider: true,
+      referencesProvider: true,
+      renameProvider: { prepareProvider: true },
+      documentFormattingProvider: true,
     },
-    completionProvider: {
-      triggerCharacters: ["$", "@", ":", "-", "(", " ", "."],
-      resolveProvider: false,
+    serverInfo: {
+      name: "stylus-language-server",
+      version: "0.7.0",
     },
-    hoverProvider: true,
-    colorProvider: true,
-    signatureHelpProvider: {
-      triggerCharacters: ["(", ","],
-      retriggerCharacters: [","],
-    },
-    definitionProvider: true,
-    referencesProvider: true,
-    renameProvider: { prepareProvider: true },
-  },
-  serverInfo: {
-    name: "stylus-language-server",
-    version: "0.5.0",
-  },
-}));
+  };
+});
 
 function symbolsFor(document) {
   const cached = symbolCache.get(document.uri);
@@ -167,6 +181,18 @@ connection.onRenameRequest((params) => {
     params.newName,
     resolveText,
   );
+});
+
+connection.onDocumentFormatting((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+
+  const result = formatDocument(document.getText(), formatConfig);
+  if (result.refused) {
+    connection.console.log(`Formatting skipped for ${document.uri}: ${result.refused}`);
+    return null;
+  }
+  return result.edits;
 });
 
 function clearTimer(uri) {

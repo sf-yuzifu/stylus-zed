@@ -1,6 +1,6 @@
 {
   "name": "stylus-language-server",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Language server for Stylus powered by the official Stylus compiler",
   "type": "module",
   "bin": {
@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js && node --check src/symbols.js && node --check src/completion.js && node --check src/hover.js && node --check src/colors.js && node --check src/signature.js && node --check src/navigation.js && node --check src/workspace.js && node --check src/text.js && node --check src/data/css.js && node --check src/data/builtins.js && node --check src/data/colors.js && node --check src/data/html.js",
+    "check": "node --check bin/stylus-language-server.js && node --check src/diagnostics.js && node --check src/symbols.js && node --check src/completion.js && node --check src/hover.js && node --check src/colors.js && node --check src/signature.js && node --check src/navigation.js && node --check src/workspace.js && node --check src/format.js && node --check src/text.js && node --check src/data/css.js && node --check src/data/builtins.js && node --check src/data/colors.js && node --check src/data/html.js",
     "test": "node --test"
   },
   "engines": {
@@ -34,12 +34,18 @@
     "@vscode/web-custom-data": "0.6.3",
     "color-name": "2.0.0",
     "stylus": "0.64.0",
+    "stylus-supremacy": "5.0.2",
     "vscode-languageserver": "10.1.0",
     "vscode-languageserver-textdocument": "1.0.12"
   },
   "overrides": {
     "stylus": {
       "glob": "13.0.6"
+    },
+    "stylint": {
+      "stampit": {
+        "mout": "1.2.4"
+      }
     }
   }
 }

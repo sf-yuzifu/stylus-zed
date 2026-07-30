@@ -28,6 +28,12 @@ The server accepts `--stdio` and provides:
   files (resolved with the compiler's lookup rules, with cycle protection)
   appear in completions, hover, and go-to-definition, which jumps into the
   dependency. The index tracks imported files' modification times.
+- **Formatting** — powered by
+  [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy), the
+  community-standard Stylus formatter, behind safety guards that refuse
+  documents it mishandles (scientific notation, `@namespace url()`,
+  non-idempotent output, carriage-return injection). A conservative
+  whitespace-only engine is available as an always-safe alternative.
 
 CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
 read from the installed compiler's own sources. File-local symbols use a
@@ -40,6 +46,32 @@ npx stylus-language-server --stdio
 
 This package is developed as part of
 [stylus-zed](https://github.com/sf-yuzifu/stylus-zed).
+
+## Security Notes
+
+`npm audit` currently reports 4 high and 3 moderate advisories, all inside
+`stylint` — an unmaintained transitive dependency of `stylus-supremacy`
+(`brace-expansion`, `minimatch`, `glob`, `yargs`/`yargs-parser`). Those
+advisories affect stylint's command-line file globbing and CLI argument
+parsing, which this server never executes: formatting runs in-process through
+`stylus-supremacy.format()` on document text only, and no glob patterns or
+CLI input reach the vulnerable code. The fixable advisory in the chain
+(`mout`) is already overridden to a patched version. If `stylus-supremacy`
+drops or replaces its `stylint` dependency in a future release, the remaining
+advisories disappear.
+
+## Acknowledgements
+
+- [Stylus](https://github.com/stylus/stylus) — the official compiler behind
+  diagnostics and the source of built-in function signatures.
+- [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) — the
+  formatting engine.
+- [vscode-custom-data](https://github.com/microsoft/vscode-custom-data) —
+  CSS/HTML data for completions and hover.
+- [color-name](https://github.com/colorjs/color-name) — the CSS named-color
+  table.
+- [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node) —
+  the LSP protocol implementation.
 
 ## License
 

@@ -22,13 +22,14 @@
 - 跳转定义与查找引用：变量、mixin、函数，作用域感知，理解遮蔽、参数与循环变量
 - 跨文件符号：`@import` 文件中的变量和 mixin 可补全、hover，并跳转到来源文件，自动跟随导入链
 - 重命名重构：保留每个使用处的 `$` 书写习惯
+- 文档格式化：由 [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy)（社区标准 Stylus 格式化器）驱动，针对其已知不安全场景设有护栏；另提供永远安全的 whitespace 引擎
 - `.styl` 文件识别、注释切换、两空格缩进和 Stylus 单词字符配置
 
 grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因此，缩进式 Stylus 和 Stylus 特有语法都由原生 parser 解析。
 
 ## 功能矩阵
 
-以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 10 项，仅剩格式化列入路线图：
+以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展已覆盖全部 11 项：
 
 | 功能 | 本扩展 | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
@@ -42,7 +43,7 @@ grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因
 | 文档符号 | ✅ 通过 Tree-sitter outline 查询提供大纲面板（非 LSP `documentSymbol`） | ⚠️ 未测试 |
 | 代码折叠 | ✅ 通过 Tree-sitter 提供语法驱动的折叠 | ⚠️ 未测试 |
 | 颜色选择器 | ✅ 字面量与颜色变量的色板，支持 hex/RGB/HSL 展示切换 | ⚠️ 未测试 |
-| 格式化 | ❌ 计划中 | ⚠️ 未测试 |
+| 格式化 | ✅ 带护栏的 stylus-supremacy 引擎 + 安全的 whitespace 引擎 | ⚠️ 未测试 |
 
 诊断目前每次校验只报告编译器发现的第一个错误，且不包含风格 lint。文档符号与折叠由 Tree-sitter grammar 提供，不经过 language server。
 
@@ -88,13 +89,50 @@ grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、
 
 跨文件支持按编译器的查找规则解析 `@import`/`@require`（相对路径、`.styl` 补全、`index.styl`），带环保护和深度上限。导入文件中的根级变量和 mixin 出现在补全与 hover 中并标注来源文件，跳转定义直接进入依赖文件。索引缓存跟踪导入文件的修改时间，磁盘上的改动会自动生效。引用与重命名覆盖当前文件与声明所在文件；其他同样导入该文件的使用处暂不收集。
 
+## 格式化
+
+Stylus 没有官方格式化器，因此服务器集成了 [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy)——VSCode "Stylus Supremacy" 扩展的引擎，也是大多数 Stylus 用户正在使用的格式化工具。默认使用引擎自身的默认选项（CSS 风格的大括号/冒号/分号，即其测试最充分的路径），所有选项均可透传配置。
+
+由于上游引擎在部分合法 Stylus 上存在已知的正确性缺陷，每次格式化请求都会经过安全护栏；任一护栏触发时文件保持不变，原因会写入 language server 日志：
+
+1. 含科学计数法（如 `1e5px`，引擎会将其改写成非法 CSS）的文档拒绝格式化
+2. 引擎无法解析的文档（包括 `@namespace ... url(...)` 与语法损坏的文件）拒绝格式化
+3. 输出中被注入回车符（`\r`）的拒绝格式化
+4. 二次格式化结果不稳定（`@document` 的已知缺陷）的拒绝格式化
+
+另提供 `whitespace` 引擎：只规范化行尾空白、tab 缩进、连续空行和末尾换行，永不重写值或风格，因此始终安全。
+
+在 Zed `settings.json` 中配置：
+
+```json
+{
+  "lsp": {
+    "stylus-language-server": {
+      "initialization_options": {
+        "format": {
+          "engine": "supremacy",
+          "options": { "insertBraces": false, "insertSemicolons": false }
+        }
+      }
+    }
+  },
+  "languages": {
+    "Stylus": { "format_on_save": "on" }
+  }
+}
+```
+
+- `format.engine`：`"supremacy"`（默认）或 `"whitespace"`
+- `format.options`：任意 [stylus-supremacy 选项](https://thisismanta.github.io/stylus-supremacy)（`insertColons`、`insertBraces`、`tabStopChar`、`sortProperties` 等）。注意 `insertBraces: false`（缩进风格输出）走的是引擎测试最少的路径，复杂文件可能格式化不当；护栏仍然生效
+- `format.tabStopChar` 与 `format.maxConsecutiveBlankLines` 用于调整 whitespace 引擎
+
 ## 当前限制
 
 - 每次校验只报告编译器发现的第一个错误，而不是一次列出全部错误
 - 跨文件索引只覆盖 `@import` 链中的根级符号；暂不支持 `node_modules` 包解析与 glob 导入
 - 引用收集范围为当前文件与声明文件，尚未覆盖整个工作区
 - 作用域模型基于缩进，是近似实现：不建模 Stylus 求值顺序、条件重定义或属性查找（`@width`）
-- 暂无格式化器
+- 出于安全考虑，格式化可能拒绝部分合法文档（见上方护栏列表）；不支持范围格式化
 - 伪类与伪元素参数内容目前以宽容的 `pseudo_argument_text` 解析，嵌套参数尚不能获得完整的语法感知高亮
 - Tree-sitter parser 会有意保持宽容度；编译器诊断才是权威的错误信号
 
@@ -216,7 +254,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 ### 格式化与 Lint
 
-格式化器与可选的 Stylelint 集成计划在语言智能稳定后进行。
+格式化自 v0.7 起可用，由带护栏的 stylus-supremacy 引擎与安全的 whitespace 引擎提供。后续方向：范围格式化、自研保留缩进风格的格式化器以替代脆弱的 `insertBraces: false` 路径，以及可选的 Stylelint 集成。
 
 ## 贡献
 
@@ -226,14 +264,24 @@ grammar 问题请提交到 [tree-sitter-stylus](https://github.com/sf-yuzifu/tre
 
 ## 致谢
 
-本项目建立在以下项目和社区工作的基础上，谨致谢意：
+本项目建立在以下项目及其维护者的工作之上，谨致谢意。
 
-- [Stylus](https://github.com/stylus/stylus)：语言、编译器、文档和兼容性测试样例
-- [nib](https://github.com/stylus/nib)：真实 Stylus 项目的兼容性覆盖
-- [Tree-sitter](https://github.com/tree-sitter/tree-sitter)：增量解析基础设施
-- [Zed](https://github.com/zed-industries/zed) 与 [Zed Extensions](https://github.com/zed-industries/extensions)：编辑器和扩展平台
-- [zed-less](https://github.com/jimliang/zed-less) 与 [tree-sitter-less](https://github.com/jimliang/tree-sitter-less)：为 Zed 语言扩展结构提供了有价值的参考
-- [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension)：较早探索了 Zed 的 Stylus 支持，并明确记录了缺少原生 grammar 的核心问题
+### 直接使用的代码与数据
+
+- [Stylus](https://github.com/stylus/stylus)：语言、编译器与文档。language server 运行官方编译器产生诊断，并从其自身源码（`functions/index.styl`、`functions/index.js`）读取内建函数签名。其测试套件也为我们的兼容性 fixture 提供了参考。
+- [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus)：驱动解析的原生 Tree-sitter grammar，作为本扩展的姊妹项目维护。
+- [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy)（[@ThisIsManta](https://github.com/ThisIsManta)）：格式化引擎，通过我们的安全护栏集成。
+- [vscode-custom-data](https://github.com/microsoft/vscode-custom-data)（`@vscode/web-custom-data`）：补全与 hover 使用的 CSS 属性、值、at-rule、伪选择器数据以及 HTML 标签数据。我们只复用与 VS Code 相同的数据集，不使用其 CSS parser。
+- [color-name](https://github.com/colorjs/color-name)：颜色色板使用的 148 个 CSS 命名颜色。
+- [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node)（`vscode-languageserver`、`vscode-languageserver-textdocument`）：服务器所基于的 LSP 协议实现。
+- [nib](https://github.com/stylus/nib)：真实 Stylus 项目的兼容性测试样例。
+- [Tree-sitter](https://github.com/tree-sitter/tree-sitter)：增量解析基础设施。
+- [Zed](https://github.com/zed-industries/zed) 与 [Zed Extensions](https://github.com/zed-industries/extensions)：编辑器和扩展平台。
+
+### 参考与先行工作
+
+- [zed-less](https://github.com/jimliang/zed-less) 与 [tree-sitter-less](https://github.com/jimliang/tree-sitter-less)：扩展的 Rust 入口借鉴了它们在 Zed 中安装并启动 npm language server 的模式。
+- [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension)：较早探索了 Zed 的 Stylus 支持，并明确记录了缺少原生 grammar 的核心问题；功能矩阵沿用了其 README 的功能表格作为对照基准。
 
 本扩展不依赖之前 CSS fallback 实现中的代码；当前 parser 与查询均围绕原生 `tree-sitter-stylus` grammar 构建。
 

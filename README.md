@@ -22,13 +22,14 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Go-to-definition and find-references for variables, mixins, and functions, with scope-aware resolution that understands shadowing, parameters, and loop variables
 - Cross-file symbols: variables and mixins defined in `@import`ed files complete, hover, and jump to their source file, following the import chain
 - Rename refactoring that preserves each occurrence's `$` style
+- Document formatting powered by [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) (the community-standard Stylus formatter), guarded against its known unsafe cases, plus an always-safe whitespace engine
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
 
 ## Feature Matrix
 
-Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 10 of the 11 rows; only formatting remains on the roadmap:
+Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension covers all 11 rows:
 
 | Feature | This extension | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
@@ -42,7 +43,7 @@ Measured against the feature table published by [sinejoe/zed-stylus-extension](h
 | Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
 | Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
 | Color picker | ✅ Swatches for literals and color-valued variables, with hex/RGB/HSL presentations | ⚠️ Untested |
-| Formatting | ❌ Planned | ⚠️ Untested |
+| Formatting | ✅ Guarded stylus-supremacy engine plus a safe whitespace engine | ⚠️ Untested |
 
 Diagnostics currently report the compiler's first error per validation pass and do not include style linting. Document symbols and folding are provided by the Tree-sitter grammar rather than the language server.
 
@@ -88,13 +89,50 @@ Navigation is scope-aware: the indexer computes the visibility range of every de
 
 Cross-file support follows `@import`/`@require` using the compiler's lookup rules (relative paths, `.styl` completion, `index.styl`), with cycle protection and a depth cap. Root-level variables and mixins from imported files appear in completions and hover with their origin file noted, and go-to-definition jumps into the dependency. The index cache tracks imported files' modification times, so edits on disk are picked up automatically. References and rename cover the current file plus the declaration file; usages in other files that import the same partial are not collected yet.
 
+## Formatting
+
+Stylus has no official formatter, so the server integrates [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) — the engine behind the "Stylus Supremacy" VS Code extension, which is what most Stylus users format with. It runs with its own default options (CSS-style braces/colons/semicolons, its most-tested code path) and every option is pass-through configurable.
+
+Because the upstream engine has known correctness bugs on some valid Stylus, every format request goes through safety guards; when any guard trips, the file is left untouched and the reason is logged to the language-server log:
+
+1. Documents containing scientific notation (e.g. `1e5px`, which the engine rewrites into invalid CSS) are refused
+2. Documents the engine cannot parse, including `@namespace ... url(...)` and syntactically broken files, are refused
+3. Outputs containing injected carriage returns are refused
+4. Outputs that are not stable when formatted twice (a known `@document` defect) are refused
+
+An alternative `whitespace` engine only normalizes trailing whitespace, tab indentation, blank-line runs, and the final newline — it never rewrites values or style, so it is always safe.
+
+Configuration through Zed `settings.json`:
+
+```json
+{
+  "lsp": {
+    "stylus-language-server": {
+      "initialization_options": {
+        "format": {
+          "engine": "supremacy",
+          "options": { "insertBraces": false, "insertSemicolons": false }
+        }
+      }
+    }
+  },
+  "languages": {
+    "Stylus": { "format_on_save": "on" }
+  }
+}
+```
+
+- `format.engine`: `"supremacy"` (default) or `"whitespace"`
+- `format.options`: any [stylus-supremacy option](https://thisismanta.github.io/stylus-supremacy) (`insertColons`, `insertBraces`, `tabStopChar`, `sortProperties`, …). Note that `insertBraces: false` (indentation-style output) follows the engine's least-tested path and can misformat complex files; the guards still apply
+- `format.tabStopChar` and `format.maxConsecutiveBlankLines` tune the whitespace engine
+
 ## Current Limitations
 
 - Diagnostics report the compiler's first error per validation pass, not every error at once
 - Cross-file indexing covers root-level symbols from the `@import` chain only; `node_modules` package resolution and glob imports are not indexed
 - References are collected from the current file and the declaration file, not workspace-wide
 - The scope model is indentation-based and approximate: it does not model Stylus evaluation order, conditional redefinition, or property lookups (`@width`)
-- No formatter
+- Formatting may refuse some valid documents for safety (see the guard list above); range formatting is not supported
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
 - The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
 
@@ -216,7 +254,7 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 
 ### Formatting and Linting
 
-A formatter and optional Stylelint integration are planned after the language-intelligence work settles.
+Formatting is available since v0.7 through the guarded stylus-supremacy engine and the safe whitespace engine. Remaining ideas: range formatting, a from-scratch indentation-preserving formatter to replace the fragile `insertBraces: false` path, and optional Stylelint integration for style rules the compiler does not cover.
 
 ## Contributing
 
@@ -226,14 +264,24 @@ Please report grammar issues in [tree-sitter-stylus](https://github.com/sf-yuzif
 
 ## Acknowledgements
 
-This project builds on and is grateful to:
+This project builds on and is grateful to the following projects and their maintainers.
 
-- [Stylus](https://github.com/stylus/stylus), for the language, compiler, documentation, and compatibility fixtures
-- [nib](https://github.com/stylus/nib), for real-world Stylus compatibility coverage
-- [Tree-sitter](https://github.com/tree-sitter/tree-sitter), for incremental parsing infrastructure
-- [Zed](https://github.com/zed-industries/zed) and [Zed Extensions](https://github.com/zed-industries/extensions), for the editor and extension platform
-- [zed-less](https://github.com/jimliang/zed-less) and [tree-sitter-less](https://github.com/jimliang/tree-sitter-less), which provided useful reference points for Zed language extension structure
-- [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension), for earlier exploration of Stylus support in Zed and for documenting the missing native grammar problem
+### Direct code and data dependencies
+
+- [Stylus](https://github.com/stylus/stylus) — the language, compiler, and documentation. The language server runs the official compiler for diagnostics and reads built-in function signatures from its own sources (`functions/index.styl`, `functions/index.js`). Its test suite also informed our compatibility fixtures.
+- [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus) — the native Tree-sitter grammar that powers parsing, maintained as a sister project of this extension.
+- [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) by [@ThisIsManta](https://github.com/ThisIsManta) — the formatting engine, integrated behind our safety guards.
+- [vscode-custom-data](https://github.com/microsoft/vscode-custom-data) (`@vscode/web-custom-data`) — CSS property, value, at-rule, and pseudo-selector data plus HTML tag data for completions and hover. We reuse the same data set VS Code uses, never its CSS parser.
+- [color-name](https://github.com/colorjs/color-name) — the 148 CSS named colors behind color swatches.
+- [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node) (`vscode-languageserver`, `vscode-languageserver-textdocument`) — the LSP protocol implementation the server is built on.
+- [nib](https://github.com/stylus/nib) — real-world Stylus compatibility fixtures.
+- [Tree-sitter](https://github.com/tree-sitter/tree-sitter) — incremental parsing infrastructure.
+- [Zed](https://github.com/zed-industries/zed) and [Zed Extensions](https://github.com/zed-industries/extensions) — the editor and extension platform.
+
+### References and prior art
+
+- [zed-less](https://github.com/jimliang/zed-less) and [tree-sitter-less](https://github.com/jimliang/tree-sitter-less) — the extension's Rust entry point adapts their pattern for installing and launching an npm-based language server from Zed.
+- [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) — earlier exploration of Stylus support in Zed that documented the missing native grammar problem. Its README feature table is reused in our Feature Matrix as a comparison baseline.
 
 No code from the prior CSS-fallback implementation is required by this extension; the parser and queries here are built around the native `tree-sitter-stylus` grammar.
 

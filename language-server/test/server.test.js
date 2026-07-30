@@ -104,6 +104,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   assert.equal(initialize.result.capabilities.hoverProvider, true);
   assert.equal(initialize.result.capabilities.colorProvider, true);
   assert.ok(initialize.result.capabilities.signatureHelpProvider.triggerCharacters.includes("("));
+  assert.equal(initialize.result.capabilities.documentFormattingProvider, true);
 
   server.send({ jsonrpc: "2.0", method: "initialized", params: {} });
   server.send({
@@ -237,6 +238,19 @@ test("publishes and clears diagnostics over stdio", async (context) => {
   const rename = await server.waitFor((message) => message.id === 9);
   assert.equal(rename.result.changes[uri].length, 2);
   assert.ok(rename.result.changes[uri].every((edit) => edit.newText === "$size"));
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 10,
+    method: "textDocument/formatting",
+    params: {
+      textDocument: { uri },
+      options: { tabSize: 2, insertSpaces: true },
+    },
+  });
+  const formatting = await server.waitFor((message) => message.id === 10);
+  assert.equal(formatting.result.length, 1);
+  assert.match(formatting.result[0].newText, /body \{/);
 
   server.send({
     jsonrpc: "2.0",
