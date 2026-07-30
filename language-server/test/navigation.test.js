@@ -123,6 +123,39 @@ test("prepare rename returns the token range", () => {
   assert.deepEqual(prepared.range.start, { line: 9, character: 8 });
 });
 
+test("indexes block assignments with empty values", () => {
+  const source = `$reset = @block {
+  margin: 0
+}
+
+$spacing-reset =
+  margin: 0
+  padding: 0
+
+.apply-block
+  {$reset}
+
+.apply-block-alt
+  {$spacing-reset}
+`;
+  const index = indexDocument(source);
+
+  const spacing = resolveVariable(index, "$spacing-reset", 12);
+  assert.equal(spacing.value, "@block");
+  assert.equal(spacing.line, 4);
+
+  const reset = resolveVariable(index, "$reset", 9);
+  assert.equal(reset.line, 0);
+
+  const definition = getDefinition(source, { line: 12, character: 4 }, index, URI);
+  assert.deepEqual(definition.range.start, { line: 4, character: 0 });
+});
+
+test("assignment operators do not match equality", () => {
+  const index = indexDocument(".compare\n  if $base-size == 16px\n    color blue\n");
+  assert.deepEqual(index.variables, []);
+});
+
 test("rename edits preserve each occurrence's dollar form", () => {
   const source = "$primary = red\n.card\n  color $primary\n  border-color primary\n";
   const index = indexDocument(source);

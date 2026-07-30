@@ -11,7 +11,7 @@ const KEYWORDS = new Set([
   "or",
 ]);
 
-const VARIABLE_RE = /^(\s*)(\$?[\w$-]+)\s*(=|\?=|:=)\s*(.+?)\s*(?:\/\/.*)?$/;
+const VARIABLE_RE = /^(\s*)(\$?[\w$-]+)\s*(=|\?=|:=)(?!=)\s*(.*?)\s*(?:\/\/.*)?$/;
 const FUNCTION_RE = /^(\s*)([a-zA-Z_-][\w$-]*)\(([^)]*)\)\s*(\{.*\})?\s*$/;
 const FOR_RE = /^(\s*)for\s+([\w$-]+)(?:\s*,\s*([\w$-]+))?\s+in\s+/;
 
@@ -147,7 +147,7 @@ export function indexDocument(text) {
       const indent = indentation(variable[1]);
       variables.push({
         name: variable[2],
-        value: variable[4],
+        value: variable[4] || "@block",
         line: i,
         indent,
         endLine: blockEnd(lines, i, indent, true),
