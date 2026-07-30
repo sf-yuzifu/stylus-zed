@@ -1,37 +1,11 @@
 import { getProperty } from "./data/css.js";
 import { formatHex, formatHsl, formatRgb, isNamedColor, parseColor } from "./data/colors.js";
+import { makeCommentTracker } from "./text.js";
 
 const HEX_RE = /#(?:[0-9a-fA-F]{3,4}\b|[0-9a-fA-F]{6}\b|[0-9a-fA-F]{8}\b)/g;
 const COLOR_FN_RE = /\b(?:rgba?|hsla?)\([^)]*\)/gi;
 const WORD_RE = /[a-zA-Z][\w-]*/g;
 const VARIABLE_RE = /\$?[\w-]+/g;
-
-function makeCommentTracker() {
-  let inBlock = false;
-  return (line) => {
-    const mask = new Array(line.length).fill(false);
-    for (let i = 0; i < line.length; i++) {
-      if (!inBlock && line[i] === "/" && line[i + 1] === "/") {
-        mask.fill(true, i);
-        break;
-      }
-      if (!inBlock && line[i] === "/" && line[i + 1] === "*") {
-        inBlock = true;
-        mask[i] = mask[i + 1] = true;
-        i++;
-        continue;
-      }
-      if (inBlock && line[i] === "*" && line[i + 1] === "/") {
-        mask[i] = mask[i + 1] = true;
-        i++;
-        inBlock = false;
-        continue;
-      }
-      mask[i] = inBlock;
-    }
-    return mask;
-  };
-}
 
 function isValuePosition(line, index) {
   const before = line.slice(0, index);

@@ -12,6 +12,12 @@ import { validateStylus } from "../src/diagnostics.js";
 import { getColorPresentations, getDocumentColors } from "../src/colors.js";
 import { getCompletions } from "../src/completion.js";
 import { getHover } from "../src/hover.js";
+import {
+  getDefinition,
+  getPrepareRename,
+  getReferences,
+  getRenameEdits,
+} from "../src/navigation.js";
 import { getSignatureHelp } from "../src/signature.js";
 import { indexDocument } from "../src/symbols.js";
 
@@ -39,10 +45,13 @@ connection.onInitialize(() => ({
       triggerCharacters: ["(", ","],
       retriggerCharacters: [","],
     },
+    definitionProvider: true,
+    referencesProvider: true,
+    renameProvider: { prepareProvider: true },
   },
   serverInfo: {
     name: "stylus-language-server",
-    version: "0.4.0",
+    version: "0.5.0",
   },
 }));
 
@@ -87,6 +96,47 @@ connection.onSignatureHelp((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return null;
   return getSignatureHelp(document.getText(), params.position, symbolsFor(document));
+});
+
+connection.onDefinition((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+  return getDefinition(
+    document.getText(),
+    params.position,
+    symbolsFor(document),
+    document.uri,
+  );
+});
+
+connection.onReferences((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return [];
+  return getReferences(
+    document.getText(),
+    params.position,
+    symbolsFor(document),
+    document.uri,
+    params.context.includeDeclaration,
+  ).map(({ uri, range }) => ({ uri, range }));
+});
+
+connection.onPrepareRename((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+  return getPrepareRename(document.getText(), params.position, symbolsFor(document));
+});
+
+connection.onRenameRequest((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) return null;
+  return getRenameEdits(
+    document.getText(),
+    params.position,
+    symbolsFor(document),
+    document.uri,
+    params.newName,
+  );
 });
 
 function clearTimer(uri) {

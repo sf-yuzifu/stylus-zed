@@ -90,7 +90,7 @@ test("value context offers property values, variables and builtins", () => {
   assert.ok(labels.includes("border-radius"));
 });
 
-test("dollar context offers only variables", () => {
+test("dollar context offers only visible variables", () => {
   const index = indexDocument(SAMPLE);
   const items = getCompletions(SAMPLE, { line: 10, character: 9 }, index);
 
@@ -98,6 +98,17 @@ test("dollar context offers only variables", () => {
     items.map((item) => item.label).sort(),
     ["$primary", "legacy-var"],
   );
+});
+
+test("dollar context inside a function body offers its parameters", () => {
+  const index = indexDocument(SAMPLE);
+  const insideBody = getCompletions(
+    SAMPLE.replace("  border-radius r", "  border-radius $"),
+    { line: 6, character: 17 },
+    index,
+  );
+
+  assert.ok(insideBody.some((item) => item.label === "r"));
 });
 
 test("at-rule context offers CSS at-rules and Stylus additions", () => {

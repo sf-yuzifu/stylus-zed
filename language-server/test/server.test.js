@@ -135,7 +135,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/didChange",
     params: {
       textDocument: { uri, version: 2 },
-      contentChanges: [{ text: "body\n  color rgba(1, 2, 3, 0.5)" }],
+      contentChanges: [{ text: "$w = rgba(1, 2, 3, 0.5)\nbody\n  width $w\n  color red" }],
     },
   });
 
@@ -153,7 +153,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/completion",
     params: {
       textDocument: { uri },
-      position: { line: 1, character: 8 },
+      position: { line: 3, character: 8 },
     },
   });
   const completion = await server.waitFor((message) => message.id === 3);
@@ -167,7 +167,7 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/hover",
     params: {
       textDocument: { uri },
-      position: { line: 1, character: 3 },
+      position: { line: 3, character: 3 },
     },
   });
   const hover = await server.waitFor((message) => message.id === 4);
@@ -180,9 +180,8 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     params: { textDocument: { uri } },
   });
   const documentColor = await server.waitFor((message) => message.id === 5);
-  assert.equal(documentColor.result.length, 1);
-  assert.equal(documentColor.result[0].color.alpha, 0.5);
-  assert.deepEqual(documentColor.result[0].range.start, { line: 1, character: 8 });
+  assert.equal(documentColor.result.length, 3);
+  assert.ok(documentColor.result.some((entry) => entry.color.alpha === 0.5));
 
   server.send({
     jsonrpc: "2.0",
@@ -190,12 +189,54 @@ test("publishes and clears diagnostics over stdio", async (context) => {
     method: "textDocument/signatureHelp",
     params: {
       textDocument: { uri },
-      position: { line: 1, character: 16 },
+      position: { line: 0, character: 13 },
     },
   });
   const signatureHelp = await server.waitFor((message) => message.id === 6);
   assert.match(signatureHelp.result.signatures[0].label, /^rgba\(/);
   assert.equal(signatureHelp.result.activeParameter, 1);
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 7,
+    method: "textDocument/definition",
+    params: {
+      textDocument: { uri },
+      position: { line: 2, character: 8 },
+    },
+  });
+  const definition = await server.waitFor((message) => message.id === 7);
+  assert.deepEqual(definition.result.range.start, { line: 0, character: 0 });
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 8,
+    method: "textDocument/references",
+    params: {
+      textDocument: { uri },
+      position: { line: 2, character: 8 },
+      context: { includeDeclaration: true },
+    },
+  });
+  const references = await server.waitFor((message) => message.id === 8);
+  assert.deepEqual(
+    references.result.map((ref) => ref.range.start.line).sort(),
+    [0, 2],
+  );
+
+  server.send({
+    jsonrpc: "2.0",
+    id: 9,
+    method: "textDocument/rename",
+    params: {
+      textDocument: { uri },
+      position: { line: 2, character: 8 },
+      newName: "size",
+    },
+  });
+  const rename = await server.waitFor((message) => message.id === 9);
+  assert.equal(rename.result.changes[uri].length, 2);
+  assert.ok(rename.result.changes[uri].every((edit) => edit.newText === "$size"));
 
   server.send({
     jsonrpc: "2.0",

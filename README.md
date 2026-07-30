@@ -19,13 +19,15 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Hover documentation for variables, mixins, functions, Stylus built-ins, and CSS properties with MDN links
 - Color swatches for literal colors and color-valued variables, with hex/RGB/HSL conversion through the color picker
 - Signature help for user mixins and Stylus built-in functions, tracking the active parameter
+- Go-to-definition and find-references for variables, mixins, and functions, with scope-aware resolution that understands shadowing, parameters, and loop variables
+- Rename refactoring that preserves each occurrence's `$` style
 - `.styl` file detection, comment toggling, two-space indentation, and Stylus word characters
 
 The grammar is implemented specifically for Stylus. It does not use a CSS grammar as a fallback, so indentation-style Stylus and Stylus-specific constructs are parsed natively.
 
 ## Feature Matrix
 
-Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 8 of the 11 rows; the remaining 3 are on the roadmap:
+Measured against the feature table published by [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) (as of July 2026), this extension fully covers 10 of the 11 rows; only formatting remains on the roadmap:
 
 | Feature | This extension | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
@@ -34,8 +36,8 @@ Measured against the feature table published by [sinejoe/zed-stylus-extension](h
 | Completions | ✅ CSS properties/values, Stylus built-ins, at-rules, pseudo selectors, tags, and file-local variables/mixins/functions | ⚠️ Untested |
 | Hover documentation | ✅ Variables, mixins, functions, Stylus built-ins, and CSS properties | ⚠️ Untested |
 | Signature help | ✅ User mixins and Stylus built-ins with active-parameter tracking | ⚠️ Untested |
-| Go-to definition | ❌ Planned | ⚠️ Untested |
-| Find references | ❌ Planned | ⚠️ Untested |
+| Go-to definition | ✅ Scope-aware, understands shadowing and parameters | ⚠️ Untested |
+| Find references | ✅ Scope-aware, including rename refactoring | ⚠️ Untested |
 | Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
 | Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
 | Color picker | ✅ Swatches for literals and color-valued variables, with hex/RGB/HSL presentations | ⚠️ Untested |
@@ -81,11 +83,13 @@ Color swatches come from the same literal analysis the compiler performs: hex, `
 
 Signature help resolves the innermost call at the cursor — user mixins with their declared parameters, or Stylus built-ins with runtime-accurate signatures — and highlights the active parameter as you type across nested calls.
 
+Navigation is scope-aware: the indexer computes the visibility range of every declaration from the indentation tree, so go-to-definition, find-references, and rename all understand shadowing. A variable declared inside a rule shadows the outer one only within its block, parameters and loop variables win inside their function bodies, and references that resolve to a different (shadowed) declaration are excluded. Rename preserves the `$` prefix style of each individual occurrence.
+
 ## Current Limitations
 
 - Diagnostics report the compiler's first error per validation pass, not every error at once
-- File-local symbols are line-based and not scope-aware; cross-file symbols (from `@import`ed files) are not indexed yet
-- No references or go-to-definition yet
+- Symbols and navigation are file-local; cross-file symbols (from `@import`ed files) are not indexed yet
+- The scope model is indentation-based and approximate: it does not model Stylus evaluation order, conditional redefinition, or property lookups (`@width`)
 - No formatter
 - Pseudo-class and pseudo-element argument contents are parsed permissively as `pseudo_argument_text`, so nested arguments do not yet receive fully syntax-aware highlighting
 - The Tree-sitter parser is intentionally permissive; compiler diagnostics are the authoritative error signal
@@ -197,11 +201,13 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 
 ### Language Intelligence — started in v0.3
 
-- CSS property and value completion — done
-- Stylus built-in function completion and hover documentation — done
-- File-local variables, mixins, functions, and parameters — done (line-based); scope awareness and cross-file indexing are next
+- CSS property and value completion — done in v0.3
+- Stylus built-in function completion and hover documentation — done in v0.3
+- File-local variables, mixins, functions, and parameters — done; navigation is scope-aware since v0.5
 - Signature help and color swatches/presentations — done in v0.4
-- Go-to-definition, references, and LSP document symbols
+- Go-to-definition, references, and rename — done in v0.5
+- Cross-file symbol indexing (following `@import`) and workspace-wide references
+- LSP document symbols for variables/mixins/functions (the Tree-sitter outline already covers selectors)
 - Evaluated colors (e.g. `lighten()` results) for swatches
 
 ### Formatting and Linting

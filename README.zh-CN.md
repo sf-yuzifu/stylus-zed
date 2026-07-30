@@ -19,13 +19,15 @@
 - Hover 文档：变量、mixin、函数、Stylus 内建函数，以及附带 MDN 链接的 CSS 属性文档
 - 颜色色板：字面量颜色与值为颜色的变量，取色器支持 hex/RGB/HSL 互转
 - 签名帮助：用户 mixin 与 Stylus 内建函数，实时高亮当前参数
+- 跳转定义与查找引用：变量、mixin、函数，作用域感知，理解遮蔽、参数与循环变量
+- 重命名重构：保留每个使用处的 `$` 书写习惯
 - `.styl` 文件识别、注释切换、两空格缩进和 Stylus 单词字符配置
 
 grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因此，缩进式 Stylus 和 Stylus 特有语法都由原生 parser 解析。
 
 ## 功能矩阵
 
-以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 8 项，其余 3 项已列入路线图：
+以 [sinejoe/zed-stylus-extension](https://github.com/sinejoe/zed-stylus-extension) 发布的功能表格为对照（截至 2026 年 7 月），本扩展完整覆盖 11 项中的 10 项，仅剩格式化列入路线图：
 
 | 功能 | 本扩展 | sinejoe/zed-stylus-extension |
 | --- | --- | --- |
@@ -34,8 +36,8 @@ grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因
 | 补全 | ✅ CSS 属性/值、Stylus 内建函数、at-rule、伪选择器、标签，以及文件内变量/mixin/函数 | ⚠️ 未测试 |
 | Hover 文档 | ✅ 变量、mixin、函数、Stylus 内建函数和 CSS 属性 | ⚠️ 未测试 |
 | 签名帮助 | ✅ 用户 mixin 与 Stylus 内建函数，带当前参数跟踪 | ⚠️ 未测试 |
-| 跳转到定义 | ❌ 计划中 | ⚠️ 未测试 |
-| 查找引用 | ❌ 计划中 | ⚠️ 未测试 |
+| 跳转到定义 | ✅ 作用域感知，理解遮蔽与参数 | ⚠️ 未测试 |
+| 查找引用 | ✅ 作用域感知，含重命名重构 | ⚠️ 未测试 |
 | 文档符号 | ✅ 通过 Tree-sitter outline 查询提供大纲面板（非 LSP `documentSymbol`） | ⚠️ 未测试 |
 | 代码折叠 | ✅ 通过 Tree-sitter 提供语法驱动的折叠 | ⚠️ 未测试 |
 | 颜色选择器 | ✅ 字面量与颜色变量的色板，支持 hex/RGB/HSL 展示切换 | ⚠️ 未测试 |
@@ -81,11 +83,13 @@ grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、
 
 签名帮助解析光标处最内层调用——用户 mixin 显示其声明的参数，Stylus 内建函数显示运行时提取的准确签名——并在嵌套调用中实时高亮当前参数。
 
+导航是作用域感知的：索引器根据缩进树计算每个声明的可见范围，因此跳转定义、查找引用和重命名都能理解遮蔽。规则内声明的变量只在其块内遮蔽外层变量；参数和循环变量在函数体内优先；解析到不同（被遮蔽）声明的引用会被排除。重命名保留每个使用处各自的 `$` 前缀形式。
+
 ## 当前限制
 
 - 每次校验只报告编译器发现的第一个错误，而不是一次列出全部错误
-- 文件内符号索引基于逐行扫描，不感知作用域；跨文件符号（来自 `@import` 的文件）尚未建立索引
-- 暂无引用查找和跳转到定义
+- 符号与导航仅限当前文件；跨文件符号（来自 `@import` 的文件）尚未建立索引
+- 作用域模型基于缩进，是近似实现：不建模 Stylus 求值顺序、条件重定义或属性查找（`@width`）
 - 暂无格式化器
 - 伪类与伪元素参数内容目前以宽容的 `pseudo_argument_text` 解析，嵌套参数尚不能获得完整的语法感知高亮
 - Tree-sitter parser 会有意保持宽容度；编译器诊断才是权威的错误信号
@@ -197,11 +201,13 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 ### 语言智能 —— v0.3 已开始
 
-- CSS 属性和值补全 —— 已完成
-- Stylus 内建函数补全和 hover 文档 —— 已完成
-- 文件内变量、mixin、函数和参数 —— 已完成（逐行索引）；下一步是作用域感知与跨文件索引
+- CSS 属性和值补全 —— v0.3 已完成
+- Stylus 内建函数补全和 hover 文档 —— v0.3 已完成
+- 文件内变量、mixin、函数和参数 —— 已完成；v0.5 起导航为作用域感知
 - 签名帮助与颜色色板/格式切换 —— v0.4 已完成
-- 跳转到定义、引用查找和 LSP document symbols
+- 跳转到定义、引用查找和重命名 —— v0.5 已完成
+- 跨文件符号索引（跟随 `@import`）与工作区范围引用
+- 变量/mixin/函数的 LSP document symbols（选择器大纲已由 Tree-sitter 提供）
 - 求值颜色（如 `lighten()` 结果）的色板
 
 ### 格式化与 Lint

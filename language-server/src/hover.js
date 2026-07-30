@@ -1,22 +1,7 @@
 import { getAtDirective, getProperty, getPseudo, markdownFor } from "./data/css.js";
 import { getBuiltin } from "./data/builtins.js";
-import { findFunction, findVariable } from "./symbols.js";
-
-const TOKEN_RE = /[@$:]*[\w-]+/g;
-
-function tokenAt(line, character) {
-  TOKEN_RE.lastIndex = 0;
-  let match;
-  while ((match = TOKEN_RE.exec(line)) !== null) {
-    const start = match.index;
-    const end = start + match[0].length;
-    if (character >= start && character <= end) {
-      return { text: match[0], start, end };
-    }
-    if (start > character) break;
-  }
-  return undefined;
-}
+import { resolveAt } from "./navigation.js";
+import { tokenAt } from "./text.js";
 
 function codeBlock(language, code) {
   return `\`\`\`${language}\n${code}\n\`\`\``;
@@ -39,28 +24,22 @@ export function getHover(text, position, index) {
   if (!token) return null;
 
   const name = token.text;
+  const resolved = resolveAt(index, name, position.line);
 
-  if (name.startsWith("$")) {
-    const variable = findVariable(index, name);
-    if (variable) {
-      const parts = [codeBlock("stylus", `${variable.name} = ${variable.value}`)];
-      if (variable.doc) parts.push(variable.doc);
-      return hoverResult(parts.join("\n\n"), position.line, token);
-    }
+  if (resolved?.type === "variable") {
+    const variable = resolved.symbol;
+    const declaration =
+      variable.kind === "param"
+        ? variable.name
+        : `${variable.name} = ${variable.value}`;
+    const parts = [codeBlock("stylus", declaration)];
+    if (variable.doc) parts.push(variable.doc);
+    if (variable.kind === "param") parts.push("Function parameter.");
+    return hoverResult(parts.join("\n\n"), position.line, token);
   }
 
-  const variable = findVariable(index, name);
-  if (variable && !name.startsWith("@")) {
-    const declarationLine = lines[variable.line]?.trim() ?? "";
-    if (declarationLine.startsWith(name)) {
-      const parts = [codeBlock("stylus", `${variable.name} = ${variable.value}`)];
-      if (variable.doc) parts.push(variable.doc);
-      return hoverResult(parts.join("\n\n"), position.line, token);
-    }
-  }
-
-  const fn = findFunction(index, name);
-  if (fn) {
+  if (resolved?.type === "function") {
+    const fn = resolved.symbol;
     const parts = [codeBlock("stylus", `${fn.name}(${fn.params})`)];
     parts.push(fn.doc ?? "User-defined mixin or function.");
     return hoverResult(parts.join("\n\n"), position.line, token);

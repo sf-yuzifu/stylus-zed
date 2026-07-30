@@ -20,6 +20,10 @@ The server accepts `--stdio` and provides:
 - **Signature help** — user mixins with declared parameters and Stylus
   built-ins with runtime-accurate signatures, tracking the active parameter
   across nested calls.
+- **Navigation** — go-to-definition, find-references, and rename for
+  variables, mixins, and functions. Resolution is scope-aware: it understands
+  indentation-based visibility, shadowing, parameters, and loop variables,
+  and rename preserves each occurrence's `$` style.
 
 CSS data comes from `@vscode/web-custom-data`; Stylus built-in signatures are
 read from the installed compiler's own sources. File-local symbols use a

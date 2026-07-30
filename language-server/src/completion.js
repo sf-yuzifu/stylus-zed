@@ -50,10 +50,18 @@ function dedupe(items) {
   });
 }
 
-function variableItems(index) {
+function variableItems(index, line) {
+  const visible = index.variables
+    .filter(
+      (variable) =>
+        variable.line === line ||
+        (variable.line < line && line <= variable.endLine),
+    )
+    .sort((a, b) => b.indent - a.indent || b.line - a.line);
+
   const items = [];
   const seen = new Set();
-  for (const variable of index.variables) {
+  for (const variable of visible) {
     const plain = variable.name.replace(/^\$/, "");
     if (seen.has(plain)) continue;
     seen.add(plain);
@@ -160,7 +168,7 @@ export function getCompletions(text, position, index) {
   }
 
   if (/\$[\w-]*$/.test(before)) {
-    return dedupe(variableItems(index));
+    return dedupe(variableItems(index, position.line));
   }
 
   const start = before.replace(/^\s*/, "");
@@ -176,7 +184,7 @@ export function getCompletions(text, position, index) {
   if (inValue || /[\w$-]+\([^()]*$/.test(before)) {
     return dedupe([
       ...(inValue ? valueItems(word) : []),
-      ...variableItems(index),
+      ...variableItems(index, position.line),
       ...builtinItems(),
       ...functionItems(index),
     ]);
