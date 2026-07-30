@@ -15,6 +15,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { validateStylus } from "../src/diagnostics.js";
 import { getColorPresentations, getDocumentColors } from "../src/colors.js";
 import { getCompletions } from "../src/completion.js";
+import { evaluateExpressions } from "../src/evaluate.js";
 import { DEFAULT_FORMAT_CONFIG, formatDocument } from "../src/format.js";
 import { getHover } from "../src/hover.js";
 import {
@@ -39,6 +40,7 @@ const resultsByDocument = new Map();
 const symbolCache = new Map();
 const fileIndexCache = new Map();
 const fileListCache = new Map();
+const evalCache = new Map();
 let workspaceFolders = [];
 let formatConfig = DEFAULT_FORMAT_CONFIG;
 
@@ -186,11 +188,38 @@ connection.onHover((params) => {
 connection.onDocumentColor((params) => {
   const document = documents.get(params.textDocument.uri);
   if (!document) return [];
-  return getDocumentColors(document.getText(), symbolsFor(document));
+  const index = symbolsFor(document);
+  return getDocumentColors(document.getText(), index, document.uri, (_uri, idx, candidates) =>
+    cachedEvaluate(document, idx, candidates),
+  );
 });
 
+function filesKeyFor(uri) {
+  const cached = symbolCache.get(uri);
+  return cached ? cached.files.map((file) => file.mtime).join(":") : "";
+}
+
+function cachedEvaluate(document, index, candidates) {
+  const key = `${document.version}::${filesKeyFor(document.uri)}`;
+  const cached = evalCache.get(document.uri);
+  if (cached && cached.key === key) return cached.results;
+
+  const results = evaluateExpressions(document.uri, index, candidates);
+  if (evalCache.size > 50) evalCache.clear();
+  evalCache.set(document.uri, { key, results });
+  return results;
+}
+
+function textInRange(text, range) {
+  if (range.start.line !== range.end.line) return "";
+  const line = text.split(/\r?\n/)[range.start.line] ?? "";
+  return line.slice(range.start.character, range.end.character);
+}
+
 connection.onColorPresentation((params) => {
-  return getColorPresentations(params.color, params.range);
+  const document = documents.get(params.textDocument.uri);
+  const spanned = document ? textInRange(document.getText(), params.range) : undefined;
+  return getColorPresentations(params.color, params.range, spanned);
 });
 
 connection.onSignatureHelp((params) => {

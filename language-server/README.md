@@ -14,9 +14,10 @@ The server accepts `--stdio` and provides:
   mixins, and functions defined in the current file.
 - **Hover** — variable declarations, mixin/function signatures, Stylus
   built-in documentation, and CSS property documentation with MDN links.
-- **Color swatches** — hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and named
-  colors, including usages of variables assigned a literal color. The color
-  picker offers hex, RGB, and HSL presentations.
+- **Color swatches** — hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, named colors,
+  usages of color-valued variables, and **compiler-evaluated expressions**
+  such as `lighten(#3498db, 10%)` or `rgba($primary, 0.5)`. The color picker
+  offers hex/RGB/HSL replacements for literal color text only.
 - **Signature help** — user mixins with declared parameters and Stylus
   built-ins with runtime-accurate signatures, tracking the active parameter
   across nested calls.

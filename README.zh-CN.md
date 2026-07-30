@@ -44,7 +44,7 @@ grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因
 | 查找引用 | ✅ 作用域感知，含重命名重构 | ⚠️ 未测试 |
 | 文档符号 | ✅ 通过 Tree-sitter outline 查询提供大纲面板（非 LSP `documentSymbol`） | ⚠️ 未测试 |
 | 代码折叠 | ✅ 通过 Tree-sitter 提供语法驱动的折叠 | ⚠️ 未测试 |
-| 颜色选择器 | ✅ 字面量与颜色变量的色板，支持 hex/RGB/HSL 展示切换 | ⚠️ 未测试 |
+| 颜色选择器 | ✅ 字面量、颜色变量与编译器求值表达式的色板，字面量支持 hex/RGB/HSL 切换 | ⚠️ 未测试 |
 | 格式化 | ✅ 带护栏的 stylus-supremacy 引擎 + 安全的 whitespace 引擎 | ⚠️ 未测试 |
 
 诊断目前每次校验只报告编译器发现的第一个错误，且不包含风格 lint。文档符号与折叠由 Tree-sitter grammar 提供，不经过 language server。
@@ -83,7 +83,7 @@ grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、
 
 补全条目按上下文区分：属性后的值、`$` 后的变量、`@` 后的 at-rule、`:` 后的伪选择器、`()` 内的调用参数，以及语句位置的属性/mixin/标签。
 
-颜色色板来自与编译器一致的字面量分析：识别 hex、`rgb()`/`rgba()`、`hsl()`/`hsla()` 以及 148 个 CSS 命名颜色；赋值为字面量颜色的变量会在每个使用处带上色板。取色器提供 hex、RGB、HSL 三种替换格式。`lighten()` 等函数求值结果暂不做色板。
+颜色色板来自两趟分析：字面量分析（hex、`rgb()`/`rgba()`、`hsl()`/`hsla()` 与 148 个 CSS 命名颜色，赋值为字面量颜色的变量在每个使用处带上色板），以及**通过真实编译器求值**——`lighten(#3498db, 10%)`、`darken($primary, $amount)`、`rgba($primary, 0.5)` 这类表达式会结合文档自身的变量声明求值，色板显示 Stylus 真实会产生的颜色。无法静态解析的表达式（函数参数、用户 mixin）会安静跳过。取色器只对字面量颜色文本提供 hex/RGB/HSL 替换，不会改写变量引用或函数调用。
 
 签名帮助解析光标处最内层调用——用户 mixin 显示其声明的参数，Stylus 内建函数显示运行时提取的准确签名——并在嵌套调用中实时高亮当前参数。
 
@@ -254,7 +254,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 - 跳转到定义、引用查找和重命名 —— v0.5 已完成
 - 跨文件符号索引（跟随 `@import`）—— v0.6 已完成；覆盖所有导入方的工作区范围引用与重命名 —— v0.8 已完成；`node_modules` 与 glob 导入 —— v0.9 已完成
 - 变量/mixin 的文档符号 —— v0.8 已完成（选择器大纲由 Tree-sitter 提供）
-- 求值颜色（如 `lighten()` 结果）的色板
+- 求值颜色的色板 —— v0.10 已完成（经由真实编译器；用户 mixin 与参数不在范围内）
 
 ### 格式化与 Lint
 

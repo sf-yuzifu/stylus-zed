@@ -44,7 +44,7 @@ Measured against the feature table published by [sinejoe/zed-stylus-extension](h
 | Find references | ✅ Scope-aware, including rename refactoring | ⚠️ Untested |
 | Document symbols | ✅ Outline panel via the Tree-sitter outline query (not LSP `documentSymbol`) | ⚠️ Untested |
 | Folding ranges | ✅ Syntax-driven folding via Tree-sitter | ⚠️ Untested |
-| Color picker | ✅ Swatches for literals and color-valued variables, with hex/RGB/HSL presentations | ⚠️ Untested |
+| Color picker | ✅ Literals, color-valued variables, and compiler-evaluated expressions, with hex/RGB/HSL presentations for literals | ⚠️ Untested |
 | Formatting | ✅ Guarded stylus-supremacy engine plus a safe whitespace engine | ⚠️ Untested |
 
 Diagnostics currently report the compiler's first error per validation pass and do not include style linting. Document symbols and folding are provided by the Tree-sitter grammar rather than the language server.
@@ -83,7 +83,7 @@ Completions and hover are provided by the same language server:
 
 Completion items are context-aware: values after a property, variables after `$`, at-rules after `@`, pseudo selectors after `:`, call arguments inside `()`, and properties/mixins/tags in statement position.
 
-Color swatches come from the same literal analysis the compiler performs: hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and the 148 CSS named colors are recognized, and variables assigned a literal color carry their swatch to every usage site. The color picker offers hex, RGB, and HSL replacement presentations. Colors produced by functions such as `lighten()` are not evaluated, so they do not get swatches yet.
+Color swatches come from two passes: literal analysis (hex, `rgb()`/`rgba()`, `hsl()`/`hsla()`, and the 148 CSS named colors, with variables assigned a literal color carrying their swatch to every usage) and **evaluation through the real compiler** — expressions such as `lighten(#3498db, 10%)`, `darken($primary, $amount)`, or `rgba($primary, 0.5)` are evaluated with the document's own variable declarations, so the swatch shows the color Stylus would actually produce. Expressions that cannot be resolved statically (function parameters, user mixins) are skipped silently. The color picker offers hex/RGB/HSL replacements only for literal color text, so it never rewrites a variable reference or a function call.
 
 Signature help resolves the innermost call at the cursor — user mixins with their declared parameters, or Stylus built-ins with runtime-accurate signatures — and highlights the active parameter as you type across nested calls.
 
@@ -254,7 +254,7 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 - Go-to-definition, references, and rename — done in v0.5
 - Cross-file symbol indexing following `@import` — done in v0.6; workspace-wide references and rename across all importers — done in v0.8; `node_modules` and glob imports — done in v0.9
 - Document symbols for variables/mixins — done in v0.8 (the Tree-sitter outline covers selectors)
-- Evaluated colors (e.g. `lighten()` results) for swatches
+- Evaluated colors for swatches — done in v0.10 (via the real compiler; user mixins and parameters stay out of scope)
 
 ### Formatting and Linting
 

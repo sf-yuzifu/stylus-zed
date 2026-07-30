@@ -1,5 +1,6 @@
 import { getProperty } from "./data/css.js";
 import { formatHex, formatHsl, formatRgb, isNamedColor, parseColor } from "./data/colors.js";
+import { evaluateExpressions, findColorCalls } from "./evaluate.js";
 import { makeCommentTracker } from "./text.js";
 
 const HEX_RE = /#(?:[0-9a-fA-F]{3,4}\b|[0-9a-fA-F]{6}\b|[0-9a-fA-F]{8}\b)/g;
@@ -30,10 +31,11 @@ function colorAt(color, line, start, end) {
   };
 }
 
-export function getDocumentColors(text, index) {
+export function getDocumentColors(text, index, uri, evaluate = evaluateExpressions) {
   const lines = text.split(/\r?\n/);
   const colors = [];
   const trackComments = makeCommentTracker();
+  const commentMasks = lines.map((line) => trackComments(line));
 
   const colorVariables = new Map();
   for (const variable of index.variables) {
@@ -43,11 +45,13 @@ export function getDocumentColors(text, index) {
     }
   }
 
-  const declarationLines = new Set(index.variables.map((v) => v.line));
+  const declarationLines = new Set(
+    index.variables.filter((v) => !v.imported).map((v) => v.line),
+  );
 
   for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
     const line = lines[lineNumber];
-    const commentMask = trackComments(line);
+    const commentMask = commentMasks[lineNumber];
 
     HEX_RE.lastIndex = 0;
     let match;
@@ -95,10 +99,25 @@ export function getDocumentColors(text, index) {
     }
   }
 
+  const candidates = findColorCalls(
+    lines,
+    (line, start, lineNumber) =>
+      !commentMasks[lineNumber][start] && isValuePosition(line, start),
+  );
+  const evaluated = evaluate(uri, index, candidates);
+  candidates.forEach((candidate, candidateIndex) => {
+    const color = evaluated.get(candidateIndex);
+    if (!color) return;
+    colors.push(colorAt(color, candidate.line, candidate.start, candidate.end));
+  });
+
   return colors;
 }
 
-export function getColorPresentations(color, range) {
+export function getColorPresentations(color, range, spannedText) {
+  if (typeof spannedText === "string" && parseColor(spannedText) === null) {
+    return [];
+  }
   return [formatHex, formatRgb, formatHsl].map((formatter) => {
     const label = formatter(color);
     return {
