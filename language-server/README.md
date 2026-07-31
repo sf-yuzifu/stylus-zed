@@ -9,6 +9,10 @@ The server accepts `--stdio` and provides:
   evaluation, and `@import`/`@require` resolution), debounced while typing and
   refreshed on save. Errors inside imported files are published on that file's
   URI.
+- **Stylelint** — optional style diagnostics via bundled Stylelint 16 and
+  `postcss-styl` (with the official `stylelint-stylus` plugin available to
+  configurations). Disabled unless a project stylelint configuration is
+  discoverable or explicitly enabled through initialization options.
 - **Completions** — CSS properties and values, Stylus built-in functions,
   at-rules, pseudo-classes and pseudo-elements, HTML tags, and the variables,
   mixins, and functions defined in the current file.
@@ -72,6 +76,10 @@ advisories disappear.
   diagnostics and the source of built-in function signatures.
 - [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) — the
   formatting engine.
+- [Stylelint](https://github.com/stylelint/stylelint),
+  [postcss-styl](https://github.com/stylus/postcss-styl), and
+  [stylelint-stylus](https://github.com/stylus/stylelint-stylus) — style
+  linting for Stylus sources.
 - [vscode-custom-data](https://github.com/microsoft/vscode-custom-data) —
   CSS/HTML data for completions and hover.
 - [color-name](https://github.com/colorjs/color-name) — the CSS named-color

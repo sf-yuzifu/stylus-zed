@@ -15,6 +15,7 @@
 - 为选择器、mixin、变量、keyframes 和 at-rule 提供文档大纲
 - 为规则、mixin、block call、匿名函数、at-rule、keyframes 和注释提供 Vim text objects
 - 基于官方 Stylus 编译器的错误诊断，输入时实时显示在编辑器和 Problems 面板中
+- 可选的 [Stylelint](https://stylelint.io/) 诊断，由项目自身的 stylelint 配置驱动
 - 上下文感知的补全：CSS 属性与值、Stylus 内建函数、at-rule、伪类与伪元素、HTML 标签，以及当前文件中定义的变量、mixin 和函数
 - Hover 文档：变量、mixin、函数、Stylus 内建函数，以及附带 MDN 链接的 CSS 属性文档
 - 颜色色板：字面量颜色与值为颜色的变量，取色器支持 hex/RGB/HSL 互转
@@ -56,11 +57,11 @@ grammar 是专门为 Stylus 实现的，不使用 CSS grammar 作为替代。因
 扩展当前固定使用 [`tree-sitter-stylus@8f00573`](https://github.com/sf-yuzifu/tree-sitter-stylus/commit/8f005731c15642c92db1235391b10f7e7c820a84)。该 revision 已通过以下检查：
 
 - 21 个聚焦的 [Tree-sitter corpus 测试](https://github.com/sf-yuzifu/tree-sitter-stylus/blob/8f005731c15642c92db1235391b10f7e7c820a84/test/corpus/statements.txt)，全部通过
-- 综合语法冒烟样例 [`example.styl`](example.styl)，解析结果中没有 `ERROR` 或 `MISSING` 节点
-- 对 Stylus 官方仓库与 nib 中 501 个非空真实 `.styl` 文件进行的手工兼容性扫描，未产生 `ERROR` 或 `MISSING` 节点
+- 综合语法冒烟样例 [`example.styl`](example.styl)，解析结果中没有 `ERROR` 或 `MISSING` 节点，且能被官方 Stylus 编译器无错误编译
+- 对官方 Stylus 仓库（固定 `0.64.0` tag）与 nib（固定 `v1.2.0` tag）中 499 个非空真实 `.styl` 文件的可复现扫描，未产生 `ERROR` 或 `MISSING` 节点
 - highlights、brackets、indents、outline、syntax overrides 和 text objects 查询均可针对固定版本的 grammar 编译
 
-grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、查询文件和 501 文件扫描目前属于发布前检查而非 CI 任务；在扫描脚本与样例来源 revision 纳入仓库前，501 文件数据只表示一次已记录的测试结果。
+grammar 仓库的 CI 会在每次推送时重新生成 parser、运行 corpus 测试、解析 fixture、编译全部查询，并运行固定 revision 的 499 文件扫描。
 
 这些结果衡量的是 parser 兼容性，并不等价于编译器语义。Stylus 官方编译器仍然是判断代码语义是否合法的最终依据，同时也是下方诊断功能的错误来源。
 
@@ -73,6 +74,32 @@ grammar 仓库的 CI 会重新生成 parser 并运行 corpus 测试。fixture、
 - 服务器刻意只报告编译器的第一个错误，而不是基于 Tree-sitter 语法树猜测更多错误，避免诊断与真实编译器行为不一致
 
 扩展首次使用时从 npm 下载固定版本的服务器包，并缓存在 Zed 的扩展工作目录中，之后离线可用，不要求用户预先在 `PATH` 中安装服务器。
+
+### Stylelint
+
+服务器同时内置 [Stylelint](https://stylelint.io/) 16 与 [`postcss-styl`](https://github.com/stylus/postcss-styl)（并附带官方的 `stylelint-stylus` 插件以支持 Stylus 感知规则）。Stylelint 在启用时与编译器诊断并行运行：
+
+- 默认（`"auto"`）模式下，能从文档位置发现 stylelint 配置时才启用——由你项目里的 `.stylelintrc` / `stylelint.config.*` 决定运行哪些规则；找不到配置时保持安静
+- 也可以通过 `initialization_options.stylelint` 强制开关或指定配置：
+
+```json
+{
+  "lsp": {
+    "stylus-language-server": {
+      "initialization_options": {
+        "stylelint": {
+          "enable": true,
+          "config": {
+            "rules": { "declaration-block-no-duplicate-properties": true }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Stylelint 诊断以 `stylelint` 为来源与编译器错误并列显示。注意 `postcss-styl` 在部分输入上比 Stylus 编译器更严格（例如非法 hex 颜色）；它无法解析的文件会被静默跳过而不是重复报错。
 
 ## 语言智能
 
@@ -249,7 +276,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 ### 错误诊断 —— 已在 v0.2 完成
 
-基于官方 Stylus 编译器的 diagnostics-only language server 会向 Zed 发布语法、求值和导入错误，同时避免引入第二套不兼容的 parser。后续可以针对编译器不覆盖的风格规则接入 Stylelint。本扩展不会使用 `vscode-css-language-server`，因为缩进式 Stylus 不是合法 CSS，直接接入会产生误导性的错误诊断。
+基于官方 Stylus 编译器的 diagnostics-only language server 会向 Zed 发布语法、求值和导入错误，同时避免引入第二套不兼容的 parser。v0.12 加入了由项目自身配置驱动的 Stylelint 诊断，覆盖编译器不涉及的风格规则。本扩展不会使用 `vscode-css-language-server`，因为缩进式 Stylus 不是合法 CSS，直接接入会产生误导性的错误诊断。
 
 ### 语言智能 —— v0.3 已开始
 
@@ -264,7 +291,7 @@ npx tree-sitter query ../stylus-zed/languages/stylus/overrides.scm example.styl 
 
 ### 格式化与 Lint
 
-格式化自 v0.7 起可用，范围格式化自 v0.11 起可用。v0.11 的默认 `indent` 引擎是自研的风格保留格式化器，经结构、编译与幂等三重校验；带护栏的 stylus-supremacy 与最小化的 whitespace 引擎仍然可用。后续方向：可选的 Stylelint 集成，覆盖编译器不涉及的风格规则。
+格式化自 v0.7 起可用，范围格式化自 v0.11 起可用。v0.11 的默认 `indent` 引擎是自研的风格保留格式化器，经结构、编译与幂等三重校验；带护栏的 stylus-supremacy 与最小化的 whitespace 引擎仍然可用。Stylelint 诊断（v0.12）通过项目自身配置覆盖风格规则。
 
 ## 贡献
 
@@ -281,6 +308,7 @@ grammar 问题请提交到 [tree-sitter-stylus](https://github.com/sf-yuzifu/tre
 - [Stylus](https://github.com/stylus/stylus)：语言、编译器与文档。language server 运行官方编译器产生诊断，并从其自身源码（`functions/index.styl`、`functions/index.js`）读取内建函数签名。其测试套件也为我们的兼容性 fixture 提供了参考。
 - [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus)：驱动解析的原生 Tree-sitter grammar，作为本扩展的姊妹项目维护。
 - [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy)（[@ThisIsManta](https://github.com/ThisIsManta)）：格式化引擎，通过我们的安全护栏集成。
+- [Stylelint](https://github.com/stylelint/stylelint)、[postcss-styl](https://github.com/stylus/postcss-styl) 与 [stylelint-stylus](https://github.com/stylus/stylelint-stylus)：Stylus 源码的风格检查，由用户自身配置驱动。
 - [vscode-custom-data](https://github.com/microsoft/vscode-custom-data)（`@vscode/web-custom-data`）：补全与 hover 使用的 CSS 属性、值、at-rule、伪选择器数据以及 HTML 标签数据。我们只复用与 VS Code 相同的数据集，不使用其 CSS parser。
 - [color-name](https://github.com/colorjs/color-name)：颜色色板使用的 148 个 CSS 命名颜色。
 - [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node)（`vscode-languageserver`、`vscode-languageserver-textdocument`）：服务器所基于的 LSP 协议实现。

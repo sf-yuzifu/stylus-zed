@@ -15,6 +15,7 @@ Native [Stylus](https://stylus-lang.com/) language support for the [Zed](https:/
 - Document outline for selectors, mixins, variables, keyframes, and at-rules
 - Vim text objects for rules, mixins, block calls, anonymous functions, at-rules, keyframes, and comments
 - Compiler diagnostics from the official Stylus compiler, shown in the editor and the Problems panel as you type
+- Optional [Stylelint](https://stylelint.io/) diagnostics driven by your project's own stylelint configuration
 - Context-aware completions for CSS properties and values, Stylus built-in functions, at-rules, pseudo-classes and pseudo-elements, HTML tags, and the variables, mixins, and functions defined in the current file
 - Hover documentation for variables, mixins, functions, Stylus built-ins, and CSS properties with MDN links
 - Color swatches for literal colors and color-valued variables, with hex/RGB/HSL conversion through the color picker
@@ -56,11 +57,11 @@ Diagnostics currently report the compiler's first error per validation pass and 
 This extension currently pins [`tree-sitter-stylus@8f00573`](https://github.com/sf-yuzifu/tree-sitter-stylus/commit/8f005731c15642c92db1235391b10f7e7c820a84). At that revision, the parser has been checked with:
 
 - 21 focused [Tree-sitter corpus tests](https://github.com/sf-yuzifu/tree-sitter-stylus/blob/8f005731c15642c92db1235391b10f7e7c820a84/test/corpus/statements.txt), all passing
-- The comprehensive [`example.styl`](example.styl) smoke-test fixture, parsed without `ERROR` or `MISSING` nodes
-- A manual compatibility sweep of 501 non-empty real-world `.styl` files from the official Stylus repository and nib, parsed without `ERROR` or `MISSING` nodes
+- The comprehensive [`example.styl`](example.styl) smoke-test fixture, parsed without `ERROR` or `MISSING` nodes — and compiled cleanly by the official Stylus compiler
+- A reproducible sweep of 499 non-empty real-world `.styl` files from the official Stylus repository (pinned to `0.64.0`) and nib (pinned to `v1.2.0`), parsed without `ERROR` or `MISSING` nodes
 - Query compilation against the pinned grammar for highlights, brackets, indentation, outline, syntax overrides, and text objects
 
-The grammar repository CI regenerates the parser and runs the corpus suite. The fixture, queries, and 501-file sweep are currently release checks rather than CI jobs; the real-world sweep is a recorded result until its runner and source revisions are checked in.
+The grammar repository CI regenerates the parser, runs the corpus suite, parses the fixtures, compiles all queries, and runs the pinned 499-file sweep on every push.
 
 These results measure parser compatibility, not compiler equivalence. The official Stylus compiler remains the source of truth for semantic validity, and it is also what powers the diagnostics below.
 
@@ -73,6 +74,32 @@ The extension ships a diagnostics-only language server, [`stylus-language-server
 - The server intentionally reports the compiler's first error instead of guessing additional ones from the Tree-sitter parse tree, avoiding diagnostics that disagree with the real compiler
 
 The extension downloads the pinned server package from npm on first use and caches it in Zed's extension work directory; subsequent starts work offline. A server already on the user's `PATH` is not required.
+
+### Stylelint
+
+The server also bundles [Stylelint](https://stylelint.io/) 16 with [`postcss-styl`](https://github.com/stylus/postcss-styl) (the official `stylelint-stylus` plugin is included for Stylus-aware rules). Stylelint runs alongside compiler diagnostics when enabled:
+
+- By default (`"auto"`), stylelint activates when a stylelint configuration is discoverable from the document — your project's own `.stylelintrc` / `stylelint.config.*` drives which rules run; with no configuration found, stylelint stays silent
+- It can be forced on or off and pointed at an explicit config via `initialization_options.stylelint`:
+
+```json
+{
+  "lsp": {
+    "stylus-language-server": {
+      "initialization_options": {
+        "stylelint": {
+          "enable": true,
+          "config": {
+            "rules": { "declaration-block-no-duplicate-properties": true }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Stylelint diagnostics appear with source `stylelint` alongside the compiler's errors. Note that `postcss-styl` is stricter than the Stylus compiler on some inputs (e.g. invalid hex colors); files it cannot parse are skipped silently rather than double-reported.
 
 ## Language Intelligence
 
@@ -249,7 +276,7 @@ Query compilation validates node names, but not Zed-specific capture semantics. 
 
 ### Diagnostics — done in v0.2
 
-A diagnostics-only language server backed by the official Stylus compiler publishes syntax, evaluation, and import errors to Zed without introducing a second, incompatible parser. Stylelint integration may be added later for style rules the compiler does not cover. `vscode-css-language-server` is intentionally not used because indentation-style Stylus is not valid CSS and would produce misleading diagnostics.
+A diagnostics-only language server backed by the official Stylus compiler publishes syntax, evaluation, and import errors to Zed without introducing a second, incompatible parser. Stylelint integration arrived in v0.12 for style rules the compiler does not cover, driven by the user's own stylelint configuration. `vscode-css-language-server` is intentionally not used because indentation-style Stylus is not valid CSS and would produce misleading diagnostics.
 
 ### Language Intelligence — started in v0.3
 
@@ -264,7 +291,7 @@ A diagnostics-only language server backed by the official Stylus compiler publis
 
 ### Formatting and Linting
 
-Formatting is available since v0.7 and range formatting since v0.11. The default `indent` engine (v0.11) is a from-scratch, style-preserving formatter verified by structural, compiler, and idempotency checks; the guarded stylus-supremacy and minimal whitespace engines remain available. Remaining ideas: optional Stylelint integration for style rules the compiler does not cover.
+Formatting is available since v0.7 and range formatting since v0.11. The default `indent` engine (v0.11) is a from-scratch, style-preserving formatter verified by structural, compiler, and idempotency checks; the guarded stylus-supremacy and minimal whitespace engines remain available. Stylelint diagnostics (v0.12) cover style rules through the project's own configuration.
 
 ## Contributing
 
@@ -281,6 +308,7 @@ This project builds on and is grateful to the following projects and their maint
 - [Stylus](https://github.com/stylus/stylus) — the language, compiler, and documentation. The language server runs the official compiler for diagnostics and reads built-in function signatures from its own sources (`functions/index.styl`, `functions/index.js`). Its test suite also informed our compatibility fixtures.
 - [tree-sitter-stylus](https://github.com/sf-yuzifu/tree-sitter-stylus) — the native Tree-sitter grammar that powers parsing, maintained as a sister project of this extension.
 - [stylus-supremacy](https://github.com/ThisIsManta/stylus-supremacy) by [@ThisIsManta](https://github.com/ThisIsManta) — the formatting engine, integrated behind our safety guards.
+- [Stylelint](https://github.com/stylelint/stylelint), [postcss-styl](https://github.com/stylus/postcss-styl), and [stylelint-stylus](https://github.com/stylus/stylelint-stylus) — style linting for Stylus sources, driven by the user's own configuration.
 - [vscode-custom-data](https://github.com/microsoft/vscode-custom-data) (`@vscode/web-custom-data`) — CSS property, value, at-rule, and pseudo-selector data plus HTML tag data for completions and hover. We reuse the same data set VS Code uses, never its CSS parser.
 - [color-name](https://github.com/colorjs/color-name) — the 148 CSS named colors behind color swatches.
 - [vscode-languageserver-node](https://github.com/microsoft/vscode-languageserver-node) (`vscode-languageserver`, `vscode-languageserver-textdocument`) — the LSP protocol implementation the server is built on.

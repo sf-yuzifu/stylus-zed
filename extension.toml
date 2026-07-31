@@ -1,14 +1,14 @@
 id = "stylus"
 name = "Stylus"
 description = "Stylus (.styl) language support"
-version = "0.11.0"
+version = "0.12.0"
 schema_version = 1
 authors = ["sf-yuzifu <yuzifu@yuzifu.top>"]
 repository = "https://github.com/sf-yuzifu/stylus-zed"
 
 [grammars.stylus]
 repository = "https://github.com/sf-yuzifu/tree-sitter-stylus"
-rev = "8f005731c15642c92db1235391b10f7e7c820a84"
+rev = "9cc861d33458705c6f83fef12481e30182713941"
 
 [language_servers.stylus-language-server]
 name = "Stylus Language Server"

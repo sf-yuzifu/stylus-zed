@@ -18,6 +18,7 @@ import { getCompletions } from "../src/completion.js";
 import { evaluateExpressions } from "../src/evaluate.js";
 import { DEFAULT_FORMAT_CONFIG, formatDocument, formatDocumentRange } from "../src/format.js";
 import { getHover } from "../src/hover.js";
+import { lintDocument, resolveStylelintOptions, DEFAULT_STYLELINT_OPTIONS } from "../src/lint.js";
 import {
   getDefinition,
   getPrepareRename,
@@ -44,6 +45,7 @@ const evalCache = new Map();
 let workspaceFolders = [];
 let formatConfig = DEFAULT_FORMAT_CONFIG;
 let tabStopCharExplicit = false;
+let stylelintOptions = { ...DEFAULT_STYLELINT_OPTIONS };
 
 const FILE_LIST_TTL_MS = 5000;
 const FILE_INDEX_CACHE_MAX = 100;
@@ -58,6 +60,7 @@ connection.onInitialize((params) => {
       options: requested.options ?? {},
     };
   }
+  stylelintOptions = resolveStylelintOptions(params.initializationOptions);
 
   if (Array.isArray(params.workspaceFolders) && params.workspaceFolders.length > 0) {
     workspaceFolders = params.workspaceFolders.map((folder) => folder.uri);
@@ -370,11 +373,35 @@ function publishTarget(uri) {
   connection.sendDiagnostics({ uri, diagnostics });
 }
 
-function publish(document) {
+const publishGenerations = new Map();
+
+async function stylelintDiagnostics(document) {
+  if (stylelintOptions.enable === false) return [];
+  try {
+    return await lintDocument(document.uri, document.getText(), stylelintOptions);
+  } catch (error) {
+    connection.console.log(
+      `stylelint failed for ${document.uri}: ${String(error?.message ?? error).split("\n")[0]}`,
+    );
+    return [];
+  }
+}
+
+async function publish(document) {
   clearTimer(document.uri);
+
+  const generation = (publishGenerations.get(document.uri) ?? 0) + 1;
+  publishGenerations.set(document.uri, generation);
 
   const previousTarget = resultsByDocument.get(document.uri)?.uri;
   const result = validateStylus(document.uri, document.getText());
+  result.diagnostics = [
+    ...result.diagnostics,
+    ...(await stylelintDiagnostics(document)),
+  ];
+
+  if (publishGenerations.get(document.uri) !== generation) return;
+
   resultsByDocument.set(document.uri, result);
 
   if (previousTarget && previousTarget !== result.uri) publishTarget(previousTarget);
@@ -397,6 +424,7 @@ documents.onDidClose(({ document }) => {
   const target = resultsByDocument.get(document.uri)?.uri ?? document.uri;
   resultsByDocument.delete(document.uri);
   symbolCache.delete(document.uri);
+  publishGenerations.delete(document.uri);
   publishTarget(target);
 });
 
